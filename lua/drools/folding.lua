@@ -188,29 +188,46 @@ function M.unfold_all()
   vim.notify("Unfolded all blocks in buffer", vim.log.levels.INFO)
 end
 
---- Pure Lua fold expression for Drools buffers that marks fold start (">1") on rule/declare/query/function headers
+--- 2-Level Nested Fold Expression for Drools buffers:
+--- Level 1: rule/declare/query/function start (">1")
+--- Level 2: when start (">2"), then start (">2")
+--- Allows clicking 'v' on 'when' or 'then' separately in the gutter to fold them individually!
 ---@param lnum number Line index
 ---@return string Fold level indicator
 function M.foldexpr(lnum)
   local line = vim.fn.getline(lnum)
   if not line then return "0" end
 
-  -- Header line: explicit fold level start (>1) -> displays 'v' sign in gutter column
-  if line:match("^%s*rule%s+") or line:match("^%s*declare%s+") or line:match("^%s*query%s+") or line:match("^%s*function%s+") then
+  local trimmed = line:match("^%s*(.-)%s*$") or ""
+
+  -- Outer rule/declare/query/function header (Level 1 start)
+  if trimmed:match("^rule%s+") or trimmed:match("^declare%s+") or trimmed:match("^query%s+") or trimmed:match("^function%s+") then
     return ">1"
   end
 
-  -- End of block line
-  if line:match("^%s*end%s*$") then
+  -- 'when' clause header (Level 2 start inside rule)
+  if trimmed == "when" then
+    return ">2"
+  end
+
+  -- 'then' clause header (Level 2 start inside rule)
+  if trimmed == "then" then
+    return ">2"
+  end
+
+  -- Block closing 'end'
+  if trimmed == "end" then
     return "1"
   end
 
-  -- Check if line is inside a block
+  -- Find parent section context
   for i = lnum - 1, 1, -1 do
-    local prev = vim.fn.getline(i)
-    if prev:match("^%s*end%s*$") then
+    local prev = vim.fn.getline(i):match("^%s*(.-)%s*$") or ""
+    if prev == "end" then
       return "0"
-    elseif prev:match("^%s*rule%s+") or prev:match("^%s*declare%s+") or prev:match("^%s*query%s+") or prev:match("^%s*function%s+") then
+    elseif prev == "then" or prev == "when" then
+      return "2"
+    elseif prev:match("^rule%s+") or prev:match("^declare%s+") or prev:match("^query%s+") or prev:match("^function%s+") then
       return "1"
     end
   end
