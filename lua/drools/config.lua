@@ -18,7 +18,8 @@ M.defaults = {
     enable = true,
     on_save = true,
     on_change = true,
-    debounce_ms = 300,
+    debounce_ms = 100,
+    update_in_insert = true,
   },
   lsp = {
     enable = false,

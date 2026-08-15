@@ -832,57 +832,96 @@ function M.lint(bufnr)
   vim.diagnostic.set(ns, bufnr, diagnostics)
 end
 
-function M.setup(opts)
-  local group = vim.api.nvim_create_augroup("DroolsLinter", { clear = true })
-  local debounce_ms = opts.debounce_ms or 300
-  local pending_timer = nil
+local attached_buffers = {}
 
-  --- Debounced lint: cancels previous pending lint and schedules a new one
-  local function debounced_lint(bufnr)
-    if pending_timer then
-      pcall(vim.fn.timer_stop, pending_timer)
-      pending_timer = nil
+--- Attach real-time live linter to a buffer using nvim_buf_attach
+---@param bufnr number Buffer handle
+---@param opts table Linter options
+local function attach_linter(bufnr, opts)
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then return end
+  if vim.bo[bufnr].filetype ~= "drools" then return end
+  if attached_buffers[bufnr] then return end
+
+  attached_buffers[bufnr] = true
+  local debounce_ms = (opts and opts.debounce_ms) or 100
+  local timer = nil
+
+  local function trigger_lint()
+    if timer then
+      pcall(vim.fn.timer_stop, timer)
+      timer = nil
     end
-    pending_timer = vim.fn.timer_start(debounce_ms, function()
-      pending_timer = nil
+    timer = vim.fn.timer_start(debounce_ms, function()
+      timer = nil
       vim.schedule(function()
-        if vim.api.nvim_buf_is_valid(bufnr) then
+        if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "drools" then
           M.lint(bufnr)
         end
       end)
     end)
   end
 
-  -- Always lint on save (instant, no debounce)
+  -- Initial lint when buffer attached
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      M.lint(bufnr)
+    end
+  end)
+
+  -- Attach native buffer line listener (triggers instantly on every character typed)
+  vim.api.nvim_buf_attach(bufnr, false, {
+    on_lines = function(_, buf)
+      if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].filetype ~= "drools" then
+        return true -- detach
+      end
+      trigger_lint()
+    end,
+    on_detach = function(_, buf)
+      attached_buffers[buf] = nil
+    end,
+  })
+end
+
+function M.setup(opts)
+  opts = opts or {}
+
+  -- Ensure Neovim updates diagnostic virtual text live DURING Insert mode
+  if opts.update_in_insert ~= false then
+    vim.diagnostic.config({ update_in_insert = true })
+  end
+
+  local group = vim.api.nvim_create_augroup("DroolsLinter", { clear = true })
+
+  -- Attach to all currently open Drools buffers
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].filetype == "drools" then
+      attach_linter(buf, opts)
+    end
+  end
+
+  -- Auto-attach on FileType, BufEnter, BufReadPost, BufWinEnter
+  vim.api.nvim_create_autocmd({ "FileType", "BufEnter", "BufReadPost", "BufWinEnter" }, {
+    group = group,
+    pattern = "*",
+    callback = function(args)
+      if vim.bo[args.buf].filetype == "drools" then
+        attach_linter(args.buf, opts)
+      end
+    end,
+  })
+
+  -- Always run instant lint on save
   if opts.on_save then
     vim.api.nvim_create_autocmd("BufWritePost", {
       group = group,
-      pattern = "*.drl",
+      pattern = "*",
       callback = function(args)
-        M.lint(args.buf)
+        if vim.bo[args.buf].filetype == "drools" then
+          M.lint(args.buf)
+        end
       end,
     })
   end
-
-  -- Live interactive linting as you type (debounced)
-  if opts.on_change then
-    vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "InsertLeave" }, {
-      group = group,
-      pattern = "*.drl",
-      callback = function(args)
-        debounced_lint(args.buf)
-      end,
-    })
-  end
-
-  -- Initial run on file open
-  vim.api.nvim_create_autocmd("BufReadPost", {
-    group = group,
-    pattern = "*.drl",
-    callback = function(args)
-      M.lint(args.buf)
-    end,
-  })
 end
 
 return M
