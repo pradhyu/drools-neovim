@@ -16,10 +16,8 @@ M.defaults = {
   },
   linter = {
     enable = true,
-    on_save = true,
-    on_change = true,
+    mode = "insert_leave", -- Options: "insert_leave" (default, updates on exiting Insert mode), "live" (updates DURING Insert mode), "on_save" (updates on file save)
     debounce_ms = 100,
-    update_in_insert = true,
   },
   lsp = {
     enable = false,

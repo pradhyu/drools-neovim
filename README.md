@@ -130,6 +130,7 @@ lsp = {
 | `:DroolsCodeAction` | `<leader>ca` | Show quick-fix code actions menu (auto-add end, no-loop, package, etc.) |
 | `:DroolsExpandDSL` | - | Expand `.dsl` domain mappings into raw DRL in a split preview |
 | `:DroolsLint` | `<leader>dl` | Run static syntax analysis on current Drools buffer |
+| `:DroolsLintMode [mode]` | - | Set linter mode: `live` (Insert mode), `insert_leave` (on exit Insert), `on_save` (on save) |
 | `:DroolsFormat` | `<leader>df` | Auto-format current Drools buffer |
 | `:DroolsSymbols` | `<leader>ds` | Show rules, queries, and fact symbol outline |
 | `:DroolsTest` | `<leader>dt` | Run Maven/Gradle test suite for Drools rules |

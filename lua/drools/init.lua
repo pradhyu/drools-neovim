@@ -107,6 +107,17 @@ function M.setup(user_opts)
     require("drools.dsl").expand_dsl_buffer()
   end, { desc = "Expand .dsl domain mappings into raw DRL in a split preview" })
 
+  vim.api.nvim_create_user_command("DroolsLintMode", function(opts)
+    local mode = opts.args ~= "" and opts.args or "live"
+    require("drools.linter").set_mode(mode)
+  end, {
+    nargs = "?",
+    complete = function()
+      return { "live", "insert_leave", "on_save" }
+    end,
+    desc = "Set Linter mode: 'live' (Insert mode), 'insert_leave' (on exiting Insert), 'on_save' (on save)",
+  })
+
   vim.api.nvim_create_user_command("DroolsReload", function()
     M.reload()
     vim.notify("drools.nvim reloaded successfully!", vim.log.levels.INFO)

@@ -882,13 +882,31 @@ local function attach_linter(bufnr, opts)
   })
 end
 
+local current_mode = "insert_leave"
+
+function M.set_mode(mode)
+  mode = (mode or "insert_leave"):lower()
+  if mode == "insert_leave" then
+    current_mode = "insert_leave"
+    vim.diagnostic.config({ update_in_insert = false })
+    vim.notify("Drools Linter Mode set to 'insert_leave' (diagnostics update when exiting Insert mode)", vim.log.levels.INFO)
+  elseif mode == "live" then
+    current_mode = "live"
+    vim.diagnostic.config({ update_in_insert = true })
+    vim.notify("Drools Linter Mode set to 'live' (diagnostics update DURING Insert mode as you type)", vim.log.levels.INFO)
+  elseif mode == "on_save" then
+    current_mode = "on_save"
+    vim.diagnostic.config({ update_in_insert = false })
+    vim.notify("Drools Linter Mode set to 'on_save' (diagnostics update ONLY on file save)", vim.log.levels.INFO)
+  else
+    vim.notify("Invalid linter mode: " .. tostring(mode) .. ". Valid options: 'insert_leave', 'live', 'on_save'", vim.log.levels.WARN)
+  end
+end
+
 function M.setup(opts)
   opts = opts or {}
-
-  -- Ensure Neovim updates diagnostic virtual text live DURING Insert mode
-  if opts.update_in_insert ~= false then
-    vim.diagnostic.config({ update_in_insert = true })
-  end
+  local mode = opts.mode or "insert_leave"
+  M.set_mode(mode)
 
   local group = vim.api.nvim_create_augroup("DroolsLinter", { clear = true })
 
@@ -910,18 +928,16 @@ function M.setup(opts)
     end,
   })
 
-  -- Always run instant lint on save
-  if opts.on_save then
-    vim.api.nvim_create_autocmd("BufWritePost", {
-      group = group,
-      pattern = "*",
-      callback = function(args)
-        if vim.bo[args.buf].filetype == "drools" then
-          M.lint(args.buf)
-        end
-      end,
-    })
-  end
+  -- Lint on save
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    group = group,
+    pattern = "*",
+    callback = function(args)
+      if vim.bo[args.buf].filetype == "drools" then
+        M.lint(args.buf)
+      end
+    end,
+  })
 end
 
 return M
