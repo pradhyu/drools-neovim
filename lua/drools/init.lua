@@ -119,6 +119,13 @@ function M.setup(user_opts)
   vim.api.nvim_create_user_command("DroolsFoldExcept", function(opts) folding.fold_except(opts.args ~= "" and opts.args or nil) end, { nargs = "?", desc = "Fold all rules except those matching search pattern" })
   vim.api.nvim_create_user_command("DroolsUnfoldAll", function() folding.unfold_all() end, { desc = "Unfold all blocks in buffer" })
 
+  -- Setup Section Background Highlighting (when vs then blocks)
+  require("drools.highlight").setup(M.options.highlight)
+
+  vim.api.nvim_create_user_command("DroolsToggleSectionHighlight", function()
+    require("drools.highlight").toggle_highlights()
+  end, { desc = "Toggle visual section background highlighting for 'when' vs 'then' blocks" })
+
   vim.api.nvim_create_user_command("DroolsReload", function()
     M.reload()
     vim.notify("drools.nvim reloaded successfully!", vim.log.levels.INFO)
