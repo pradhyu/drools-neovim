@@ -24,7 +24,7 @@
   name: (identifier) @attribute)
 
 (conditional_element
-  kind: ["when" "then" "and" "or" "not" "exists" "forall" "eval" "from" "over" "unit" "extends"] @keyword.conditional)
+  kind: ["and" "or" "not" "exists" "forall"] @keyword.conditional)
 
 (operator
   ["matches" "contains" "memberOf" "soundslike" "in" "excludes" "after" "before" "coincides" "during" "finishes" "finishedby" "meets" "metby" "overlaps" "overlappedby" "starts" "startedby"] @operator)
@@ -44,8 +44,7 @@
 (rhs_action
   name: ["insert" "insertLogical" "modify" "update" "retract" "delete"] @function.builtin)
 
-(rhs_implicit
-  ["drools" "kcontext" "entryPoints" "channels"] @variable.builtin)
+
 
 (annotation
   name: (identifier) @attribute.annotation)

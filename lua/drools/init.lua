@@ -37,6 +37,9 @@ function M.setup(user_opts)
     snippets.setup()
   end
 
+  -- Setup Omni-completion provider
+  require("drools.completion").setup()
+
   local hover = require("drools.hover")
 
   -- Register User Commands
@@ -88,6 +91,21 @@ function M.setup(user_opts)
   vim.api.nvim_create_user_command("DroolsTest", function()
     runner.run_tests()
   end, { desc = "Run Maven or Gradle test suite for Drools rules" })
+
+  vim.api.nvim_create_user_command("DroolsAgenda", function()
+    require("drools.agenda").show_agenda()
+  end, { desc = "Show rule execution priority agenda and loop warnings" })
+
+  vim.api.nvim_create_user_command("DroolsCodeAction", function(opts)
+    require("drools.code_action").show_quick_fixes(opts.args ~= "" and opts.args or nil)
+  end, { nargs = "?", desc = "Show quick-fix code actions menu" })
+
+  -- Setup Structural Textobjects (ar, ir, aw, iw, at, it, ad, id)
+  require("drools.textobjects").setup()
+
+  vim.api.nvim_create_user_command("DroolsExpandDSL", function()
+    require("drools.dsl").expand_dsl_buffer()
+  end, { desc = "Expand .dsl domain mappings into raw DRL in a split preview" })
 
   vim.api.nvim_create_user_command("DroolsReload", function()
     M.reload()

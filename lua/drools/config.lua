@@ -17,12 +17,12 @@ M.defaults = {
   linter = {
     enable = true,
     on_save = true,
-    on_change = false,
-    use_treesitter_parser = true,
+    on_change = true,
+    debounce_ms = 300,
   },
   lsp = {
     enable = false,
-    cmd = { "java", "-jar", "drools-lsp-server.jar" },
+    cmd = nil,
     filetypes = { "drools" },
     root_dir = nil,
   },

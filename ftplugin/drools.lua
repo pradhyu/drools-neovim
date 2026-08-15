@@ -28,6 +28,8 @@ vim.keymap.set("n", "<leader>dh", "<cmd>DroolsHover<CR>", vim.tbl_extend("force"
 vim.keymap.set("n", "<leader>dl", "<cmd>DroolsLint<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Run Linter" }))
 vim.keymap.set("n", "<leader>df", "<cmd>DroolsFormat<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Format Buffer" }))
 vim.keymap.set("n", "<leader>ds", "<cmd>DroolsSymbols<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Outline Symbols" }))
+vim.keymap.set("n", "<leader>da", "<cmd>DroolsAgenda<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Rule Agenda Inspector" }))
+vim.keymap.set("n", "<leader>ca", "<cmd>DroolsCodeAction<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Quick Fix Actions" }))
 vim.keymap.set("n", "<leader>dt", "<cmd>DroolsTest<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Run Test Suite" }))
 
 -- Buffer-local undo settings

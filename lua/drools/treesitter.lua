@@ -35,53 +35,6 @@ function M.setup(opts)
   })
 end
 
---- Get Tree-sitter AST error diagnostics for current buffer
----@param bufnr number Buffer handle
----@return table List of diagnostic items
-function M.get_parse_errors(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local diagnostics = {}
 
-  local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "drools")
-  if not ok or not parser then
-    return diagnostics
-  end
-
-  local tree = parser:parse()[1]
-  if not tree then
-    return diagnostics
-  end
-
-  local root = tree:root()
-  local query_str = "(ERROR) @error (MISSING) @missing"
-  local q_ok, query = pcall(vim.treesitter.query.parse, "drools", query_str)
-  if not q_ok or not query then
-    return diagnostics
-  end
-
-  for id, node, _ in query:iter_captures(root, bufnr, 0, -1) do
-    local start_row, start_col, end_row, end_col = node:range()
-    local capture_name = query.captures[id]
-    local node_type = node:type()
-    
-    local msg = string.format("Tree-sitter syntax error: unexpected '%s'", node_type == "ERROR" and "syntax" or node_type)
-    if capture_name == "missing" then
-      msg = "Tree-sitter syntax error: missing required token"
-    end
-
-    table.insert(diagnostics, {
-      bufnr = bufnr,
-      lnum = start_row,
-      col = start_col,
-      end_lnum = end_row,
-      end_col = end_col,
-      severity = vim.diagnostic.severity.ERROR,
-      message = msg,
-      source = "drools-treesitter",
-    })
-  end
-
-  return diagnostics
-end
 
 return M

@@ -215,5 +215,124 @@
     "description": "Defines the expiration duration after which an event fact is automatically retracted from working memory.",
     "syntax": "@expires( <time_duration> )",
     "example": "@expires( 2h30m )"
+  },
+  "package": {
+    "name": "package",
+    "category": "Structure Keyword",
+    "description": "Declares the package namespace for the rule file.",
+    "syntax": "package <namespace>",
+    "example": "package com.example.rules"
+  },
+  "import": {
+    "name": "import",
+    "category": "Structure Keyword",
+    "description": "Imports Java classes/packages for use in rules.",
+    "syntax": "import <java_class_or_package>",
+    "example": "import java.util.List"
+  },
+  "and": {
+    "name": "and",
+    "category": "LHS Conditional Keyword",
+    "description": "Logical AND connector between conditions in LHS.",
+    "syntax": "<condition1> and <condition2>",
+    "example": "$p : Person( age > 18 ) and $c : Car( owner == $p )"
+  },
+  "or": {
+    "name": "or",
+    "category": "LHS Conditional Keyword",
+    "description": "Logical OR connector between conditions in LHS.",
+    "syntax": "<condition1> or <condition2>",
+    "example": "$p : Person( age < 18 ) or $p : Person( age >= 65 )"
+  },
+  "not": {
+    "name": "not",
+    "category": "LHS Conditional Keyword",
+    "description": "Negation operator: matches when no fact matches the pattern.",
+    "syntax": "not <pattern>",
+    "example": "not Blacklist( personId == $p.id )"
+  },
+  "exists": {
+    "name": "exists",
+    "category": "LHS Conditional Keyword",
+    "description": "Existential check: matches when at least one fact matches.",
+    "syntax": "exists <pattern>",
+    "example": "exists Order( status == \"PENDING\" )"
+  },
+  "forall": {
+    "name": "forall",
+    "category": "LHS Conditional Keyword",
+    "description": "Universal quantifier: matches when all facts of a type match a sub-pattern.",
+    "syntax": "forall( <pattern> ; <sub_pattern> )",
+    "example": "forall( $e : Employee() ; $e.salary > 30000 )"
+  },
+  "eval": {
+    "name": "eval",
+    "category": "LHS Conditional Keyword",
+    "description": "Evaluates a boolean Java expression in the LHS.",
+    "syntax": "eval( <boolean_expression> )",
+    "example": "eval( isValid($p.getName()) )"
+  },
+  "collect": {
+    "name": "collect",
+    "category": "LHS Conditional Keyword",
+    "description": "Collects matching facts into a collection.",
+    "syntax": "<collection_type>() from collect( <pattern> )",
+    "example": "$list : List() from collect( Person( age > 18 ) )"
+  },
+  "entry-point": {
+    "name": "entry-point",
+    "category": "LHS Conditional Keyword",
+    "description": "Specifies the entry point stream for event processing.",
+    "syntax": "from entry-point \"<stream_name>\"",
+    "example": "$e : Event() from entry-point \"StreamName\""
+  },
+  "matches": {
+    "name": "matches",
+    "category": "Operator",
+    "description": "Regex matching operator for string fields.",
+    "syntax": "<field> matches \"<regex>\"",
+    "example": "name matches \"^[A-Z].*\""
+  },
+  "contains": {
+    "name": "contains",
+    "category": "Operator",
+    "description": "Collection containment check operator.",
+    "syntax": "<collection> contains <value>",
+    "example": "roles contains \"ADMIN\""
+  },
+  "memberOf": {
+    "name": "memberOf",
+    "category": "Operator",
+    "description": "Tests if a value is a member of a collection.",
+    "syntax": "<value> memberOf <collection>",
+    "example": "\"ADMIN\" memberOf roles"
+  },
+  "in": {
+    "name": "in",
+    "category": "Operator",
+    "description": "Tests if value is in a list of values.",
+    "syntax": "<field> in ( <value1>, <value2>, ... )",
+    "example": "status in ( \"PENDING\", \"PROCESSING\" )"
+  },
+  "excludes": {
+    "name": "excludes",
+    "category": "Operator",
+    "description": "Tests if a collection does not contain a value.",
+    "syntax": "<collection> excludes <value>",
+    "example": "roles excludes \"BANNED\""
+  },
+  "extends": {
+    "name": "extends",
+    "category": "Structure Keyword",
+    "description": "Declares rule or type inheritance.",
+    "syntax": "rule \"Rule2\" extends \"Rule1\"",
+    "example": "rule \"VIP Discount\" extends \"Base Discount\""
+  },
+  "unit": {
+    "name": "unit",
+    "category": "Structure Keyword",
+    "description": "Declares a Rule Unit for modular rule grouping.",
+    "syntax": "unit <UnitClass>",
+    "example": "unit MeasurementUnit"
   }
 }

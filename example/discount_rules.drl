@@ -54,3 +54,4 @@ rule "Volume Bulk Purchase Discount"
     then
         System.out.println("Bulk item discount triggered for total: " + $totalItemPrice);
 end
+

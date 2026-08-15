@@ -42,6 +42,42 @@ function M.check()
   else
     warn("nvim-lspconfig not installed (built-in Lua linter will be used as fallback)")
   end
+
+  -- Check java executable
+  if vim.fn.executable("java") == 1 then
+    ok("Java executable found (required for LSP)")
+  else
+    warn("Java executable not found in PATH (required for Drools LSP)")
+  end
+
+  -- Check Tree-sitter parser
+  if pcall(vim.treesitter.language.inspect, "drools") then
+    ok("Tree-sitter 'drools' parser is installed")
+  else
+    warn("Tree-sitter 'drools' parser is not installed (run :TSInstall drools)")
+  end
+
+  -- Check LSP jar if enabled
+  local config_ok, config = pcall(require, "drools.config")
+  if config_ok and config.options and config.options.lsp and config.options.lsp.enable then
+    local jar_path = nil
+    for i, arg in ipairs(config.options.lsp.cmd or {}) do
+      if arg == "-jar" and config.options.lsp.cmd[i + 1] then
+        jar_path = config.options.lsp.cmd[i + 1]
+        break
+      end
+    end
+    if jar_path then
+      local expanded_path = vim.fn.expand(jar_path)
+      if vim.fn.filereadable(expanded_path) == 1 then
+        ok("Drools LSP server jar found at: " .. jar_path)
+      else
+        error("Drools LSP server jar not found at: " .. jar_path)
+      end
+    else
+      warn("LSP is enabled but -jar path not found in lsp.cmd")
+    end
+  end
 end
 
 return M

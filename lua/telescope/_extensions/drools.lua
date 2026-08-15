@@ -49,7 +49,7 @@ local function rules_picker(opts)
       end,
     }),
     sorter = conf.generic_sorter(opts),
-    previewer = conf.vim_buffer_cat.new(opts),
+    previewer = conf.grep_previewer(opts),
   }):find()
 end
 

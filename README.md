@@ -15,6 +15,7 @@ A feature-complete Neovim plugin for **Drools Rule Language (`.drl`, `.dsl`)** p
 - 🧪 **Rule Test Runner**: Automated test execution via Maven or Gradle in an integrated terminal (`:DroolsTest`).
 - 🔭 **Telescope Integration**: Pick rules and fact symbols using `:Telescope drools`.
 - 🧠 **LSP Ready**: Configurable launcher for the Drools Language Server (`drools_ls`) with path expansion.
+- 💡 **Context-Aware Auto-Completion**: Native `omnifunc` (`<C-x><C-o>` / `nvim-cmp`) providing completion for DRL keywords, rule attributes, fact types, bound variables (`$var`), CEP temporal operators, and RHS actions.
 - 📐 **Smart Indentation**: Automatic block indentation for `rule`, `when`, `then`, `declare`, and `query`.
 - 📝 **Snippets**: Pre-packaged VS Code snippets for `LuaSnip` / `nvim-cmp`.
 - 🩺 **Health Check**: Native `:checkhealth drools` integration.
@@ -125,12 +126,24 @@ lsp = {
 | `:DroolsHover` | `<C-LeftMouse>` / `K` / `<leader>dh` | Show specification docs or definition hover popup |
 | `:DroolsSpec [keyword]` | - | Show official Drools specification popup for any keyword (with tab completion) |
 | `:DroolsGotoDefinition` | `gd` | Jump to definition of fact type, variable binding, or import |
+| `:DroolsAgenda` | `<leader>da` | Inspect rule execution priority agenda and detect infinite loop risks |
+| `:DroolsCodeAction` | `<leader>ca` | Show quick-fix code actions menu (auto-add end, no-loop, package, etc.) |
+| `:DroolsExpandDSL` | - | Expand `.dsl` domain mappings into raw DRL in a split preview |
 | `:DroolsLint` | `<leader>dl` | Run static syntax analysis on current Drools buffer |
 | `:DroolsFormat` | `<leader>df` | Auto-format current Drools buffer |
 | `:DroolsSymbols` | `<leader>ds` | Show rules, queries, and fact symbol outline |
 | `:DroolsTest` | `<leader>dt` | Run Maven/Gradle test suite for Drools rules |
 | `:Telescope drools` | - | Interactively browse rules and symbols with Telescope |
 | `:checkhealth drools` | - | Verify plugin setup, filetype, and dependencies |
+
+### Structural Text-Objects & Motions
+
+| Text-Object | Target | Example Usage |
+|---|---|---|
+| `ar` / `ir` | Around / Inside **Rule** block | `var` (select rule), `dir` (delete inside rule) |
+| `aw` / `iw` | Around / Inside **When** clause | `viw` (select inside when), `daw` (delete when clause) |
+| `at` / `it` | Around / Inside **Then** clause | `vit` (select inside then), `dat` (delete then clause) |
+| `ad` / `id` | Around / Inside **Declare** block | `vad` (select declare block) |
 
 ---
 

@@ -20,7 +20,7 @@ syn keyword droolsSection       when then
 " Rule Attributes
 syn keyword droolsAttribute     salience agenda-group ruleflow-group activation-group
 syn keyword droolsAttribute     lock-on-active no-loop auto-focus enabled dialect
-syn keyword droolsAttribute     duration timer calendars date-effective date-expires refract direct
+syn keyword droolsAttribute     duration timer calendars date-effective date-expires direct
 
 " LHS Conditional & Pattern Keywords
 syn keyword droolsConditional   and or not exists forall eval from over
@@ -70,6 +70,12 @@ syn keyword droolsJavaKeyword   new return if else for while do try catch finall
 syn match   droolsDSLHeader     "^\[\%(when\|then\|keyword\|condition\|consequence\)\?\]"
 syn match   droolsDSLParam      "{\w\+}"
 
+" Syntax Regions & Error Highlighting for Unclosed Blocks
+syn region  droolsDeclareBlock matchgroup=droolsStructure start="\<declare\>" end="\<end\>" contains=TOP,droolsRuleErr
+syn region  droolsRuleBlock    matchgroup=droolsStructure start="\<rule\>" end="\<end\>" contains=TOP,droolsDeclareErr
+syn match   droolsRuleErr      "\<rule\>" contained
+syn match   droolsDeclareErr   "\<declare\>" contained
+
 " Highlight links
 hi def link droolsCommentLine   Comment
 hi def link droolsCommentBlock  Comment
@@ -96,6 +102,8 @@ hi def link droolsRHSKeyword    Function
 hi def link droolsJavaKeyword   Keyword
 hi def link droolsDSLHeader     PreProc
 hi def link droolsDSLParam      Special
+hi def link droolsRuleErr       Error
+hi def link droolsDeclareErr    Error
 
 let b:current_syntax = "drools"
 

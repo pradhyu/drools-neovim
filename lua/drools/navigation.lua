@@ -91,15 +91,6 @@ end
 
 --- Jump to definition of word under cursor (Fact type declare, variable binding, global, query, function, or import)
 function M.goto_definition()
-  -- If LSP is active and can jump to definition, delegate to LSP first
-  local active_clients = vim.lsp.get_active_clients({ bufnr = 0 })
-  if #active_clients > 0 then
-    local ok = pcall(vim.lsp.buf.definition)
-    if ok then
-      return
-    end
-  end
-
   local cword = vim.fn.expand("<cword>")
   if not cword or cword == "" then
     return
@@ -107,23 +98,30 @@ function M.goto_definition()
 
   local clean_word = cword:gsub("^%$", "")
   local bufnr = vim.api.nvim_get_current_buf()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local lines_tbl = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-  -- Search declare block, variable binding, global, query, function, or import line
-  for i, line in ipairs(lines) do
+  -- Try local AST-based definition lookup first
+  for i, line in ipairs(lines_tbl) do
     if line:match("^%s*declare%s+" .. clean_word)
        or line:match("^%s*import%s+.-" .. clean_word .. "%s*;")
-       or line:match("%$" .. clean_word .. "%s*:")
        or line:match("^%s*global%s+.-" .. clean_word)
-       or line:match("^%s*query%s+[\"']?" .. clean_word)
-       or line:match("^%s*function%s+.-%s+" .. clean_word .. "%s*%(") then
+       or line:match("^%s*query%s+.-" .. clean_word)
+       or line:match("^%s*function%s+.-" .. clean_word)
+       or line:match("%$" .. clean_word .. "%s*:") then
       vim.api.nvim_win_set_cursor(0, { i, 0 })
-      vim.notify(string.format("Jumped to definition of '%s' (line %d)", cword, i), vim.log.levels.INFO)
+      vim.cmd("normal! zz")
       return
     end
   end
 
-  vim.notify(string.format("Definition for '%s' not found in buffer", cword), vim.log.levels.WARN)
+  -- Fallback: delegate to LSP if active
+  local active_clients = vim.lsp.get_clients({ bufnr = bufnr })
+  if #active_clients > 0 then
+    vim.lsp.buf.definition()
+    return
+  end
+
+  vim.notify("No definition found for '" .. cword .. "'", vim.log.levels.INFO)
 end
 
 --- Jump to specific rule by name
