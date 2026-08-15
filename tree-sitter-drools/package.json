@@ -1,0 +1,32 @@
+{
+  "name": "tree-sitter-drools",
+  "version": "1.0.0",
+  "description": "Tree-sitter parser grammar for Drools Rule Language (.drl)",
+  "main": "bindings/node",
+  "keywords": [
+    "tree-sitter",
+    "parser",
+    "drools",
+    "drl"
+  ],
+  "author": "drools.nvim contributors",
+  "license": "MIT",
+  "dependencies": {
+    "nan": "^2.17.0"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.20.8"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.drools",
+      "file-types": [
+        "drl",
+        "dsl"
+      ],
+      "highlights": [
+        "../queries/drools/highlights.scm"
+      ]
+    }
+  ]
+}

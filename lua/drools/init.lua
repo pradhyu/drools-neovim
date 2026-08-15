@@ -2,6 +2,7 @@
 -- Main entrypoint for drools.nvim
 
 local config = require("drools.config")
+local treesitter = require("drools.treesitter")
 local linter = require("drools.linter")
 local lsp = require("drools.lsp")
 local snippets = require("drools.snippets")
@@ -15,6 +16,11 @@ local M = {}
 ---@param user_opts table|nil Options table
 function M.setup(user_opts)
   M.options = config.setup(user_opts)
+
+  -- Setup Tree-sitter primary engine
+  if M.options.treesitter.enable then
+    treesitter.setup(M.options.treesitter)
+  end
 
   -- Setup Linter diagnostics
   if M.options.linter.enable then
@@ -31,7 +37,38 @@ function M.setup(user_opts)
     snippets.setup()
   end
 
+  local hover = require("drools.hover")
+
   -- Register User Commands
+  vim.api.nvim_create_user_command("DroolsHover", function()
+    hover.show_hover()
+  end, { desc = "Show specification hover or symbol definition popup" })
+
+  vim.api.nvim_create_user_command("DroolsSpec", function(opts)
+    local kw = opts.args
+    if kw and kw ~= "" then
+      if not hover.show_spec_doc(kw) then
+        vim.notify("No specification doc found for keyword: " .. kw, vim.log.levels.WARN)
+      end
+    else
+      hover.show_hover()
+    end
+  end, {
+    nargs = "?",
+    complete = function(ArgLead, CmdLine, CursorPos)
+      local docs = hover.get_spec_docs()
+      local keys = {}
+      for k in pairs(docs) do
+        if k:sub(1, #ArgLead):lower() == ArgLead:lower() then
+          table.insert(keys, k)
+        end
+      end
+      table.sort(keys)
+      return keys
+    end,
+    desc = "Show official Drools specification documentation for a keyword",
+  })
+
   vim.api.nvim_create_user_command("DroolsLint", function()
     linter.lint(vim.api.nvim_get_current_buf())
   end, { desc = "Run static syntax analysis on current Drools file" })

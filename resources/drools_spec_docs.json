@@ -1,0 +1,219 @@
+{
+  "rule": {
+    "name": "rule",
+    "category": "Structure Keyword",
+    "description": "Defines a Drools rule containing a rule header (name and optional attributes), a 'when' condition clause (LHS), and a 'then' action clause (RHS).",
+    "syntax": "rule \"Rule Name\"\n  [attributes...]\n  when\n    [LHS pattern conditions]\n  then\n    [RHS actions]\nend",
+    "example": "rule \"VIP Discount\"\n  salience 10\n  when\n    $c : Customer( tier == \"GOLD\" )\n  then\n    $c.setDiscount(0.20);\nend"
+  },
+  "when": {
+    "name": "when",
+    "category": "Section Keyword",
+    "description": "Left Hand Side (LHS) of a rule. Contains pattern constraints and logical elements (and, or, not, exists, accumulate, eval) evaluated against working memory facts.",
+    "syntax": "when\n  $p : Person( age > 18 )\n  not Blacklist( personId == $p.id )",
+    "example": "when\n  $o : Order( status == \"PENDING\" )"
+  },
+  "then": {
+    "name": "then",
+    "category": "Section Keyword",
+    "description": "Right Hand Side (RHS) of a rule. Contains Java/MVEL action code executed when LHS conditions evaluate to true. Supports engine actions like modify, insert, retract, and delete.",
+    "syntax": "then\n  modify($order) { setStatus(\"APPROVED\") };\n  insert(new AuditLog(\"Approved\"));",
+    "example": "then\n  drools.getKieRuntime().getAgenda().getAgendaGroup(\"next-phase\").setFocus();"
+  },
+  "salience": {
+    "name": "salience",
+    "category": "Rule Attribute",
+    "description": "Defines rule execution priority. Rules with higher salience values are executed before rules with lower salience values. Default is 0. Can accept negative numbers or dynamic expressions.",
+    "syntax": "salience <integer_expression>",
+    "example": "salience 100\nsalience ($customer.getPriority() * 10)"
+  },
+  "agenda-group": {
+    "name": "agenda-group",
+    "category": "Rule Attribute",
+    "description": "Assigns a rule to a named agenda group. Rules in an agenda group only fire when that group receives focus.",
+    "syntax": "agenda-group \"<group_name>\"",
+    "example": "agenda-group \"pricing-rules\""
+  },
+  "auto-focus": {
+    "name": "auto-focus",
+    "category": "Rule Attribute",
+    "description": "When true, automatically sets focus to the rule's agenda-group when the rule's LHS conditions are matched.",
+    "syntax": "auto-focus true",
+    "example": "agenda-group \"validation\"\nauto-focus true"
+  },
+  "no-loop": {
+    "name": "no-loop",
+    "category": "Rule Attribute",
+    "description": "Prevents a rule from re-triggering itself when it modifies facts in its 'then' section that would match its own 'when' conditions.",
+    "syntax": "no-loop true",
+    "example": "no-loop true"
+  },
+  "lock-on-active": {
+    "name": "lock-on-active",
+    "category": "Rule Attribute",
+    "description": "Enhanced version of no-loop. Prevents rules within the same ruleflow-group or agenda-group from re-activating when facts are modified by other rules in the group.",
+    "syntax": "lock-on-active true",
+    "example": "lock-on-active true"
+  },
+  "activation-group": {
+    "name": "activation-group",
+    "category": "Rule Attribute",
+    "description": "Rules belonging to the same activation-group are mutually exclusive. Only the first rule to fire in the group will execute; others are cancelled.",
+    "syntax": "activation-group \"<group_name>\"",
+    "example": "activation-group \"exclusive-discount\""
+  },
+  "duration": {
+    "name": "duration",
+    "category": "Rule Attribute",
+    "description": "Fires the rule after a specified time delay (in milliseconds) if the rule conditions remain true throughout the duration.",
+    "syntax": "duration <milliseconds>",
+    "example": "duration 5000 // 5 seconds delay"
+  },
+  "timer": {
+    "name": "timer",
+    "category": "Rule Attribute",
+    "description": "Schedules rule execution according to an interval or cron expression.",
+    "syntax": "timer ( int: <initial_delay> <interval> )\ntimer ( cron: <cron_expression> )",
+    "example": "timer ( int: 10s 5m )\ntimer ( cron: 0 0 12 * * ? )"
+  },
+  "calendars": {
+    "name": "calendars",
+    "category": "Rule Attribute",
+    "description": "Controls rule activation based on defined Quartz calendar rules.",
+    "syntax": "calendars \"<calendar_name>\"",
+    "example": "calendars \"weekday-office-hours\""
+  },
+  "date-effective": {
+    "name": "date-effective",
+    "category": "Rule Attribute",
+    "description": "Date from which the rule becomes active and eligible to fire.",
+    "syntax": "date-effective \"<date_string>\"",
+    "example": "date-effective \"01-Jan-2026\""
+  },
+  "date-expires": {
+    "name": "date-expires",
+    "category": "Rule Attribute",
+    "description": "Date after which the rule is disabled and will no longer fire.",
+    "syntax": "date-expires \"<date_string>\"",
+    "example": "date-expires \"31-Dec-2026\""
+  },
+  "declare": {
+    "name": "declare",
+    "category": "Structure Keyword",
+    "description": "Declares new in-memory fact types, metadata, or extends existing Java classes without requiring separate .java source files.",
+    "syntax": "declare TypeName\n  fieldName : FieldType\nend",
+    "example": "declare Customer\n  id : String\n  totalSpent : double\nend"
+  },
+  "query": {
+    "name": "query",
+    "category": "Structure Keyword",
+    "description": "Defines a searchable query to retrieve facts matching specific conditions from working memory.",
+    "syntax": "query \"QueryName\" ( [parameters] )\n  [pattern_conditions]\nend",
+    "example": "query \"HighValueAccounts\" (double minBalance)\n  $acc : Account( balance >= minBalance )\nend"
+  },
+  "global": {
+    "name": "global",
+    "category": "Structure Keyword",
+    "description": "Declares global variables available across all rules in the KieSession (e.g., services, loggers, results lists).",
+    "syntax": "global <JavaType> <variableName>;",
+    "example": "global org.slf4j.Logger logger;\nglobal com.example.service.AlertService alertService;"
+  },
+  "function": {
+    "name": "function",
+    "category": "Structure Keyword",
+    "description": "Defines utility functions written in Java code that can be called from rule LHS conditions or RHS actions.",
+    "syntax": "function ReturnType functionName(ArgType arg) {\n  return result;\n}",
+    "example": "function boolean isHighRisk(String country) {\n  return country.equals(\"XX\");\n}"
+  },
+  "accumulate": {
+    "name": "accumulate",
+    "category": "LHS Conditional Keyword",
+    "description": "Iterates over a dataset of facts, performing aggregate function calculations (sum, avg, min, max, count, collectList) or custom multi-stage calculation blocks (init, action, reverse, result).",
+    "syntax": "accumulate( <pattern>; <target> : <function>(<expr>) )\naccumulate( <pattern>; init(..), action(..), reverse(..), result(..) )",
+    "example": "accumulate(\n  OrderItem( orderId == $o.id, $p : price );\n  $total : sum($p)\n)"
+  },
+  "over": {
+    "name": "over",
+    "category": "LHS Conditional Keyword",
+    "description": "Specifies a sliding CEP window (time-based or length-based) over an event stream.",
+    "syntax": "over window:time( <duration> )\nover window:length( <count> )",
+    "example": "$tx : Transaction(...) over window:time( 5m )"
+  },
+  "from": {
+    "name": "from",
+    "category": "LHS Conditional Keyword",
+    "description": "Specifies a data source for a pattern (e.g. from an entry-point, global list, or object field expression) rather than querying working memory directly.",
+    "syntax": "Pattern(...) from <source>",
+    "example": "$item : OrderItem() from $order.getItems()\n$event : Event() from entry-point \"StreamName\""
+  },
+  "after": {
+    "name": "after",
+    "category": "CEP Temporal Operator",
+    "description": "Evaluates whether event B occurred after event A within optional minimum and maximum time offsets.",
+    "syntax": "$eventB : Event( this after[min_delay, max_delay] $eventA )",
+    "example": "$tx2 : Transaction( this after[0s, 5m] $tx1 )"
+  },
+  "before": {
+    "name": "before",
+    "category": "CEP Temporal Operator",
+    "description": "Evaluates whether event B occurred before event A within optional time offsets.",
+    "syntax": "$eventB : Event( this before[min, max] $eventA )",
+    "example": "$tx1 : Transaction( this before[10m] $tx2 )"
+  },
+  "coincides": {
+    "name": "coincides",
+    "category": "CEP Temporal Operator",
+    "description": "Evaluates whether two events occur simultaneously within a given tolerance threshold.",
+    "syntax": "$eventB : Event( this coincides[threshold] $eventA )",
+    "example": "$e2 : Event( this coincides[2s] $e1 )"
+  },
+  "modify": {
+    "name": "modify",
+    "category": "RHS Action Keyword",
+    "description": "Notifies the Drools engine that fact properties have changed, triggering re-evaluation of rules that depend on those properties.",
+    "syntax": "modify($fact) {\n  setField(value),\n  setOtherField(value2)\n};",
+    "example": "modify($order) {\n  setStatus(\"PROCESSED\"),\n  setTotalAmount(99.00)\n};"
+  },
+  "insert": {
+    "name": "insert",
+    "category": "RHS Action Keyword",
+    "description": "Inserts a new fact into working memory.",
+    "syntax": "insert( new FactType(...) );",
+    "example": "insert( new DiscountApplied(\"VIP_20\") );"
+  },
+  "retract": {
+    "name": "retract",
+    "category": "RHS Action Keyword",
+    "description": "Retracts/deletes a fact from working memory.",
+    "syntax": "retract( $fact );",
+    "example": "retract( $pendingOrder );"
+  },
+  "delete": {
+    "name": "delete",
+    "category": "RHS Action Keyword",
+    "description": "Alias for retract; removes a fact from working memory.",
+    "syntax": "delete( $fact );",
+    "example": "delete( $tempFact );"
+  },
+  "@role": {
+    "name": "@role",
+    "category": "Fact Annotation",
+    "description": "Defines whether a declared fact type is treated as a standard 'fact' or a time-sensitive 'event' in Complex Event Processing (CEP).",
+    "syntax": "@role( event | fact )",
+    "example": "declare LoginAttempt\n  @role( event )\nend"
+  },
+  "@timestamp": {
+    "name": "@timestamp",
+    "category": "Fact Annotation",
+    "description": "Specifies which field of an event fact holds the timestamp value.",
+    "syntax": "@timestamp( <fieldName> )",
+    "example": "declare Transaction\n  @role( event )\n  @timestamp( transactionTime )\nend"
+  },
+  "@expires": {
+    "name": "@expires",
+    "category": "Fact Annotation",
+    "description": "Defines the expiration duration after which an event fact is automatically retracted from working memory.",
+    "syntax": "@expires( <time_duration> )",
+    "example": "@expires( 2h30m )"
+  }
+}

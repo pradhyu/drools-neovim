@@ -89,21 +89,36 @@ function M.show_symbols(bufnr)
   vim.cmd("lopen")
 end
 
---- Jump to definition of word under cursor (Fact type declare or import)
+--- Jump to definition of word under cursor (Fact type declare, variable binding, global, query, function, or import)
 function M.goto_definition()
+  -- If LSP is active and can jump to definition, delegate to LSP first
+  local active_clients = vim.lsp.get_active_clients({ bufnr = 0 })
+  if #active_clients > 0 then
+    local ok = pcall(vim.lsp.buf.definition)
+    if ok then
+      return
+    end
+  end
+
   local cword = vim.fn.expand("<cword>")
   if not cword or cword == "" then
     return
   end
 
+  local clean_word = cword:gsub("^%$", "")
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
-  -- Search declare block or import line
+  -- Search declare block, variable binding, global, query, function, or import line
   for i, line in ipairs(lines) do
-    if line:match("^%s*declare%s+" .. cword) or line:match("^%s*import%s+.-" .. cword .. "%s*;") then
+    if line:match("^%s*declare%s+" .. clean_word)
+       or line:match("^%s*import%s+.-" .. clean_word .. "%s*;")
+       or line:match("%$" .. clean_word .. "%s*:")
+       or line:match("^%s*global%s+.-" .. clean_word)
+       or line:match("^%s*query%s+[\"']?" .. clean_word)
+       or line:match("^%s*function%s+.-%s+" .. clean_word .. "%s*%(") then
       vim.api.nvim_win_set_cursor(0, { i, 0 })
-      vim.notify(string.format("Jumped to definition of '%s'", cword), vim.log.levels.INFO)
+      vim.notify(string.format("Jumped to definition of '%s' (line %d)", cword, i), vim.log.levels.INFO)
       return
     end
   end

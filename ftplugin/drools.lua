@@ -22,6 +22,9 @@ end
 -- Buffer-local keymaps
 local opts = { buffer = true, silent = true }
 vim.keymap.set("n", "gd", "<cmd>DroolsGotoDefinition<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Goto Definition" }))
+vim.keymap.set("n", "K", "<cmd>DroolsHover<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Show Hover Documentation" }))
+vim.keymap.set("n", "<C-LeftMouse>", "<cmd>DroolsHover<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Ctrl+Click Definition / Hover" }))
+vim.keymap.set("n", "<leader>dh", "<cmd>DroolsHover<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Show Specification Hover" }))
 vim.keymap.set("n", "<leader>dl", "<cmd>DroolsLint<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Run Linter" }))
 vim.keymap.set("n", "<leader>df", "<cmd>DroolsFormat<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Format Buffer" }))
 vim.keymap.set("n", "<leader>ds", "<cmd>DroolsSymbols<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Outline Symbols" }))

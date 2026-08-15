@@ -4,9 +4,9 @@
     "body": [
       "rule \"${1:Rule Name}\"",
       "\twhen",
-      "\t\t${2:// conditions}",
+      "\t\t${2:$fact : FactType( field == \"value\" )}",
       "\tthen",
-      "\t\t${3:// actions}",
+      "\t\t${3:modify($fact) { setField(\"updated\") };}",
       "end"
     ],
     "description": "Standard Drools Rule block"
@@ -24,6 +24,32 @@
     ],
     "description": "Drools Rule with salience priority"
   },
+  "Rule with Agenda Group": {
+    "prefix": "rule-agenda",
+    "body": [
+      "rule \"${1:Rule Name}\"",
+      "\tagenda-group \"${2:group-name}\"",
+      "\tno-loop true",
+      "\twhen",
+      "\t\t${3:// conditions}",
+      "\tthen",
+      "\t\t${4:// actions}",
+      "end"
+    ],
+    "description": "Drools Rule with agenda-group and no-loop"
+  },
+  "Rule Extends": {
+    "prefix": "rule-extends",
+    "body": [
+      "rule \"${1:Child Rule}\" extends \"${2:Parent Rule}\"",
+      "\twhen",
+      "\t\t${3:// additional conditions}",
+      "\tthen",
+      "\t\t${4:// actions}",
+      "end"
+    ],
+    "description": "Child rule extending parent rule"
+  },
   "Declare Type": {
     "prefix": "declare",
     "body": [
@@ -33,14 +59,35 @@
     ],
     "description": "Declare a new fact type"
   },
+  "Declare Event (CEP)": {
+    "prefix": "declare-event",
+    "body": [
+      "declare ${1:EventName}",
+      "\t@role( event )",
+      "\t@timestamp( ${2:timestampField} )",
+      "\t@expires( ${3:2h} )",
+      "\t${4:id} : ${5:String}",
+      "end"
+    ],
+    "description": "Declare a CEP Event fact type with metadata annotations"
+  },
   "Query": {
     "prefix": "query",
     "body": [
-      "query \"${1:QueryName}\"",
-      "\t${2:Person( age > 30 )}",
+      "query \"${1:QueryName}\" (${2:Type} ${3:param})",
+      "\t${4:$fact : FactType( paramField == param )}",
       "end"
     ],
-    "description": "Drools Query block"
+    "description": "Drools Query block with parameters"
+  },
+  "Function": {
+    "prefix": "function",
+    "body": [
+      "function ${1:boolean} ${2:functionName}(${3:String arg}) {",
+      "\t${4:return true;}",
+      "}"
+    ],
+    "description": "Drools inline Java function definition"
   },
   "Global": {
     "prefix": "global",
@@ -48,5 +95,51 @@
       "global ${1:java.util.List} ${2:list};"
     ],
     "description": "Global variable definition"
+  },
+  "Accumulate Function": {
+    "prefix": "accumulate",
+    "body": [
+      "accumulate(",
+      "\t${1:OrderItem( $price : price )};",
+      "\t${2:$totalPrice} : ${3|sum,avg,min,max,count,collectList,collectSet|}(${4:$price})",
+      ")"
+    ],
+    "description": "Accumulate clause with built-in aggregate function"
+  },
+  "Custom Accumulate": {
+    "prefix": "accumulate-custom",
+    "body": [
+      "accumulate(",
+      "\t${1:FactType( $val : value )};",
+      "\tinit( ${2:int total = 0;} ),",
+      "\taction( ${3:total += $val;} ),",
+      "\treverse( ${4:total -= $val;} ),",
+      "\tresult( ${5:total} )",
+      ")"
+    ],
+    "description": "Custom multi-stage accumulate clause (init, action, reverse, result)"
+  },
+  "Sliding Window": {
+    "prefix": "window",
+    "body": [
+      "over window:${1|time,length|}( ${2:5m} )"
+    ],
+    "description": "Sliding window specification (time or length)"
+  },
+  "Modify Block": {
+    "prefix": "modify",
+    "body": [
+      "modify( ${1:$fact} ) {",
+      "\tset${2:Property}( ${3:value} )",
+      "};"
+    ],
+    "description": "RHS modify block for updating fact properties"
+  },
+  "Unit Declaration": {
+    "prefix": "unit",
+    "body": [
+      "unit ${1:UnitName};"
+    ],
+    "description": "Drools 7+/8+ Rule Unit declaration"
   }
 }

@@ -4,13 +4,21 @@
 local M = {}
 
 M.defaults = {
+  treesitter = {
+    enable = true,
+    prefer_treesitter_folding = true,
+    use_ast_linter = true,
+  },
   highlight = {
     enable = true,
+    use_treesitter = true,
+    fallback_regex = true,
   },
   linter = {
     enable = true,
     on_save = true,
     on_change = false,
+    use_treesitter_parser = true,
   },
   lsp = {
     enable = false,

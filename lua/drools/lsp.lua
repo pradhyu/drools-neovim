@@ -3,10 +3,28 @@
 
 local M = {}
 
+--- Expand path variables like ~ to full absolute path
+local function expand_cmd(cmd)
+  if type(cmd) == "table" then
+    local expanded = {}
+    for _, arg in ipairs(cmd) do
+      if type(arg) == "string" and arg:sub(1, 1) == "~" then
+        table.insert(expanded, vim.fn.expand(arg))
+      else
+        table.insert(expanded, arg)
+      end
+    end
+    return expanded
+  end
+  return cmd
+end
+
 function M.setup(opts)
   if not opts or not opts.enable then
     return
   end
+
+  local cmd = expand_cmd(opts.cmd or { "java", "-jar", vim.fn.expand("~/.local/share/drools/drools-lsp-server.jar") })
 
   local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
   if not lspconfig_ok then
@@ -17,7 +35,7 @@ function M.setup(opts)
         callback = function(args)
           vim.lsp.start({
             name = "drools_ls",
-            cmd = opts.cmd or { "java", "-jar", "drools-lsp-server.jar" },
+            cmd = cmd,
             root_dir = opts.root_dir or vim.fs.dirname(vim.fs.find({ "pom.xml", "build.gradle", ".git" }, { upward = true })[1]),
           })
         end,
@@ -31,7 +49,7 @@ function M.setup(opts)
   if not configs.drools_ls then
     configs.drools_ls = {
       default_config = {
-        cmd = opts.cmd or { "java", "-jar", "drools-lsp-server.jar" },
+        cmd = cmd,
         filetypes = { "drools" },
         root_dir = function(fname)
           return lspconfig.util.root_pattern("pom.xml", "build.gradle", ".git")(fname)
@@ -41,7 +59,7 @@ function M.setup(opts)
     }
   end
 
-  lspconfig.drools_ls.setup(opts)
+  lspconfig.drools_ls.setup(vim.tbl_extend("force", opts, { cmd = cmd }))
 end
 
 return M

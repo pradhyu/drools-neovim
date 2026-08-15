@@ -179,6 +179,33 @@ function M.lint(bufnr)
     })
   end
 
+  -- 0. Check Tree-sitter grammar parse errors if Tree-sitter parser for drools is active
+  local ts_ok, parser = pcall(vim.treesitter.get_parser, bufnr, "drools")
+  if ts_ok and parser then
+    local tree = parser:parse()[1]
+    if tree then
+      local root = tree:root()
+      local query_str = "(ERROR) @error (MISSING) @missing"
+      local q_ok, query = pcall(vim.treesitter.query.parse, "drools", query_str)
+      if q_ok and query then
+        for id, node, _ in query:iter_captures(root, bufnr, 0, -1) do
+          local start_row, start_col, end_row, end_col = node:range()
+          local capture_name = query.captures[id]
+          table.insert(diagnostics, {
+            bufnr = bufnr,
+            lnum = start_row,
+            col = start_col,
+            end_lnum = end_row,
+            end_col = end_col,
+            severity = vim.diagnostic.severity.ERROR,
+            message = string.format("Syntax error according to Drools Tree-sitter grammar (%s node)", capture_name),
+            source = "drools-treesitter",
+          })
+        end
+      end
+    end
+  end
+
   vim.diagnostic.set(ns, bufnr, diagnostics)
 end
 
