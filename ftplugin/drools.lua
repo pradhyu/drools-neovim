@@ -13,11 +13,10 @@ bo.shiftwidth = 4
 bo.softtabstop = 4
 bo.expandtab = true
 
--- Folding settings
-local wo = vim.wo
-if wo then
-  wo.foldmethod = "indent"
-end
+-- Folding settings & visual gutter fold column (> / v / │)
+pcall(function()
+  require("drools.folding").setup_fold_display(0)
+end)
 
 -- Buffer-local keymaps
 local opts = { buffer = true, silent = true }
@@ -31,6 +30,13 @@ vim.keymap.set("n", "<leader>ds", "<cmd>DroolsSymbols<CR>", vim.tbl_extend("forc
 vim.keymap.set("n", "<leader>da", "<cmd>DroolsAgenda<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Rule Agenda Inspector" }))
 vim.keymap.set("n", "<leader>ca", "<cmd>DroolsCodeAction<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Quick Fix Actions" }))
 vim.keymap.set("n", "<leader>dt", "<cmd>DroolsTest<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Run Test Suite" }))
+
+-- Structural Folding Keymaps (Normal & Visual mode)
+vim.keymap.set({ "n", "v" }, "<leader>zR", "<cmd>DroolsFoldRule<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Fold Rule Block" }))
+vim.keymap.set({ "n", "v" }, "<leader>zW", "<cmd>DroolsFoldWhen<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Fold When Block" }))
+vim.keymap.set({ "n", "v" }, "<leader>zT", "<cmd>DroolsFoldThen<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Fold Then Block" }))
+vim.keymap.set("n", "<leader>zA", "<cmd>DroolsFoldAllRules<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Fold All Rules" }))
+vim.keymap.set("n", "<leader>zF", "<cmd>DroolsFoldExcept<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Focus Mode (Fold Except Pattern)" }))
 
 -- Buffer-local undo settings
 vim.b.undo_ftplugin = "setlocal commentstring< comments< tabstop< shiftwidth< softtabstop< expandtab< foldmethod<"

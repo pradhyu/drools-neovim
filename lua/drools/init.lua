@@ -107,16 +107,17 @@ function M.setup(user_opts)
     require("drools.dsl").expand_dsl_buffer()
   end, { desc = "Expand .dsl domain mappings into raw DRL in a split preview" })
 
-  vim.api.nvim_create_user_command("DroolsLintMode", function(opts)
-    local mode = opts.args ~= "" and opts.args or "live"
-    require("drools.linter").set_mode(mode)
-  end, {
-    nargs = "?",
-    complete = function()
-      return { "live", "insert_leave", "on_save" }
-    end,
-    desc = "Set Linter mode: 'live' (Insert mode), 'insert_leave' (on exiting Insert), 'on_save' (on save)",
-  })
+  -- Register Structural Folding & Focus Commands
+  local folding = require("drools.folding")
+
+  vim.api.nvim_create_user_command("DroolsFoldRule", function() folding.fold_rule() end, { desc = "Fold current rule block" })
+  vim.api.nvim_create_user_command("DroolsFoldWhen", function() folding.fold_when() end, { desc = "Fold 'when' condition block" })
+  vim.api.nvim_create_user_command("DroolsFoldThen", function() folding.fold_then() end, { desc = "Fold 'then' action block" })
+  vim.api.nvim_create_user_command("DroolsFoldAllRules", function() folding.fold_all_rules() end, { desc = "Fold all rules in buffer" })
+  vim.api.nvim_create_user_command("DroolsFoldAllWhen", function() folding.fold_all_when() end, { desc = "Fold all 'when' condition blocks in buffer" })
+  vim.api.nvim_create_user_command("DroolsFoldAllThen", function() folding.fold_all_then() end, { desc = "Fold all 'then' action blocks in buffer" })
+  vim.api.nvim_create_user_command("DroolsFoldExcept", function(opts) folding.fold_except(opts.args ~= "" and opts.args or nil) end, { nargs = "?", desc = "Fold all rules except those matching search pattern" })
+  vim.api.nvim_create_user_command("DroolsUnfoldAll", function() folding.unfold_all() end, { desc = "Unfold all blocks in buffer" })
 
   vim.api.nvim_create_user_command("DroolsReload", function()
     M.reload()
@@ -134,6 +135,7 @@ function M.reload()
   end
   require("drools").setup(saved_opts)
   if vim.bo.filetype == "drools" then
+    require("drools.folding").setup_fold_display(0)
     require("drools.linter").lint(vim.api.nvim_get_current_buf())
   end
 end

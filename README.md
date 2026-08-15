@@ -131,6 +131,14 @@ lsp = {
 | `:DroolsExpandDSL` | - | Expand `.dsl` domain mappings into raw DRL in a split preview |
 | `:DroolsLint` | `<leader>dl` | Run static syntax analysis on current Drools buffer |
 | `:DroolsLintMode [mode]` | - | Set linter mode: `live` (Insert mode), `insert_leave` (on exit Insert), `on_save` (on save) |
+| `:DroolsFoldRule` | `<leader>zR` | Collapse current rule block (`rule "Name"` to `end`) |
+| `:DroolsFoldWhen` | `<leader>zW` | Collapse `when` condition block (`when` to `then`) |
+| `:DroolsFoldThen` | `<leader>zT` | Collapse `then` action block (`then` to `end`) |
+| `:DroolsFoldAllRules` | `<leader>zA` | Collapse ALL rules in buffer into 1-line headers |
+| `:DroolsFoldAllWhen` | - | Collapse ALL `when` condition blocks across buffer |
+| `:DroolsFoldAllThen` | - | Collapse ALL `then` action blocks across buffer |
+| `:DroolsFoldExcept [query]` | `<leader>zF` | **Focus Mode**: Fold all rules EXCEPT those matching search query |
+| `:DroolsUnfoldAll` | - | Unfold all collapsed blocks in buffer (`zR`) |
 | `:DroolsFormat` | `<leader>df` | Auto-format current Drools buffer |
 | `:DroolsSymbols` | `<leader>ds` | Show rules, queries, and fact symbol outline |
 | `:DroolsTest` | `<leader>dt` | Run Maven/Gradle test suite for Drools rules |
@@ -141,10 +149,10 @@ lsp = {
 
 | Text-Object | Target | Example Usage |
 |---|---|---|
-| `ar` / `ir` | Around / Inside **Rule** block | `var` (select rule), `dir` (delete inside rule) |
-| `aw` / `iw` | Around / Inside **When** clause | `viw` (select inside when), `daw` (delete when clause) |
-| `at` / `it` | Around / Inside **Then** clause | `vit` (select inside then), `dat` (delete then clause) |
-| `ad` / `id` | Around / Inside **Declare** block | `vad` (select declare block) |
+| `aR` / `iR` | Around / Inside **Rule** block | `vaR` (select rule), `diR` (delete inside rule) |
+| `aW` / `iW` | Around / Inside **When** clause | `viW` (select inside when), `daW` (delete when clause) |
+| `aT` / `iT` | Around / Inside **Then** clause | `viT` (select inside then), `daT` (delete then clause) |
+| `aD` / `iD` | Around / Inside **Declare** block | `vaD` (select declare block) |
 
 ---
 
