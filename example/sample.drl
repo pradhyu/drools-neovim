@@ -1,0 +1,34 @@
+package com.example.rules;
+
+import com.example.model.Applicant;
+import com.example.model.Application;
+
+global java.util.List approvedApplications;
+
+declare Applicant
+    name : String
+    age : int
+    creditScore : int
+end
+
+rule "Approve Adult Applicant with Good Credit"
+    salience 10
+    agenda-group "approval-group"
+    no-loop true
+    when
+        $applicant : Applicant( age >= 18, creditScore > 700 )
+        $application : Application( applicant == $applicant, status == "PENDING" )
+    then
+        $application.setStatus("APPROVED");
+        approvedApplications.add($application);
+        modify($application) {
+            setNote("Auto approved by Drools engine")
+        };
+end
+
+rule "Flag Minor Applicant"
+    when
+        $applicant : Applicant( age < 18 )
+    then
+        System.out.println("Applicant " + $applicant.getName() + " is a minor.");
+end

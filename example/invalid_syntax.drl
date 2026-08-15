@@ -1,0 +1,17 @@
+import com.example.model.User;
+
+// Notice: missing 'package' statement on line 1
+
+rule "Unmatched rule block"
+    when
+        $user : User( age < 18 )
+        // Notice: missing 'then' keyword
+        System.out.println("User is under age");
+end
+
+rule "Broken rule without end"
+    when
+        $user : User( status == "PENDING" )
+    then
+        $user.setStatus("ACTIVE");
+    // Notice: missing 'end' keyword for this rule

@@ -1,0 +1,56 @@
+package com.example.discounts;
+
+import com.example.model.Customer;
+import com.example.model.Order;
+import com.example.model.OrderItem;
+import com.example.model.Discount;
+
+global java.util.List discountResults;
+global org.slf4j.Logger logger;
+
+declare Customer
+    id : String
+    membershipTier : String
+    totalSpent : double
+end
+
+declare Order
+    id : String
+    customerId : String
+    totalAmount : double
+    itemsCount : int
+    status : String
+end
+
+rule "Apply VIP Customer 20% Discount"
+    salience 100
+    agenda-group "pricing-rules"
+    no-loop true
+    when
+        $customer : Customer( membershipTier == "GOLD" || membershipTier == "PLATINUM", totalSpent > 1000.00 )
+        $order : Order( customerId == $customer.id, status == "PENDING", $total : totalAmount )
+    then
+        double discountAmount = $total * 0.20;
+        logger.info("Applying 20% VIP discount to order: " + $order.getId());
+        
+        Discount discount = new Discount("VIP_20", discountAmount);
+        discountResults.add(discount);
+        
+        modify($order) {
+            setTotalAmount($total - discountAmount),
+            setStatus("DISCOUNTED")
+        };
+end
+
+rule "Volume Bulk Purchase Discount"
+    salience 50
+    agenda-group "pricing-rules"
+    when
+        $order : Order( itemsCount >= 10, $total : totalAmount )
+        accumulate(
+            OrderItem( orderId == $order.id, $price : price );
+            $totalItemPrice : sum($price)
+        )
+    then
+        System.out.println("Bulk item discount triggered for total: " + $totalItemPrice);
+end

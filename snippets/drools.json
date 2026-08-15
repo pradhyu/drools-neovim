@@ -1,0 +1,52 @@
+{
+  "Rule": {
+    "prefix": "rule",
+    "body": [
+      "rule \"${1:Rule Name}\"",
+      "\twhen",
+      "\t\t${2:// conditions}",
+      "\tthen",
+      "\t\t${3:// actions}",
+      "end"
+    ],
+    "description": "Standard Drools Rule block"
+  },
+  "Rule with Salience": {
+    "prefix": "rule-salience",
+    "body": [
+      "rule \"${1:Rule Name}\"",
+      "\tsalience ${2:10}",
+      "\twhen",
+      "\t\t${3:// conditions}",
+      "\tthen",
+      "\t\t${4:// actions}",
+      "end"
+    ],
+    "description": "Drools Rule with salience priority"
+  },
+  "Declare Type": {
+    "prefix": "declare",
+    "body": [
+      "declare ${1:TypeName}",
+      "\t${2:fieldName} : ${3:String}",
+      "end"
+    ],
+    "description": "Declare a new fact type"
+  },
+  "Query": {
+    "prefix": "query",
+    "body": [
+      "query \"${1:QueryName}\"",
+      "\t${2:Person( age > 30 )}",
+      "end"
+    ],
+    "description": "Drools Query block"
+  },
+  "Global": {
+    "prefix": "global",
+    "body": [
+      "global ${1:java.util.List} ${2:list};"
+    ],
+    "description": "Global variable definition"
+  }
+}

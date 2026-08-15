@@ -1,0 +1,43 @@
+package com.example.fraud;
+
+import com.example.model.Transaction;
+import com.example.model.Account;
+import com.example.model.Location;
+
+global com.example.service.AlertService alertService;
+
+function boolean isHighRiskCountry(String countryCode) {
+    return countryCode != null && (countryCode.equals("XX") || countryCode.equals("YY"));
+}
+
+query "Find Suspicious Transactions"
+    $tx : Transaction( amount > 5000.00, flagged == true )
+end
+
+query "High Value Accounts" (double minBalance)
+    $acc : Account( balance >= minBalance )
+end
+
+rule "Detect Rapid Foreign Transactions"
+    agenda-group "fraud-check"
+    lock-on-active true
+    duration 3000
+    when
+        $acc : Account( $accId : id )
+        $tx1 : Transaction( accountId == $accId, $loc1 : location )
+        $tx2 : Transaction( accountId == $accId, id != $tx1.id, $loc2 : location, this after[0s, 5m] $tx1 )
+        eval( isHighRiskCountry($loc2.getCountryCode()) )
+    then
+        alertService.triggerFraudAlert($accId, "Rapid foreign transaction detected");
+        modify($acc) {
+            setLocked(true)
+        };
+end
+
+rule "Flag Accounts Without Recent Transactions"
+    when
+        $acc : Account( status == "ACTIVE" )
+        not Transaction( accountId == $acc.id )
+    then
+        System.out.println("Account " + $acc.getId() + " has no transactions.");
+end
