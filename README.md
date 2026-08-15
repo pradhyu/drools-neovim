@@ -22,11 +22,17 @@ A feature-complete Neovim plugin for **Drools Rule Language (`.drl`, `.dsl`)** p
 
 ## Installation
 
+### Cloning the Repository
+
+```bash
+git clone https://github.com/pradhyu/drools-neovim.git
+```
+
 ### With [`lazy.nvim`](https://github.com/folke/lazy.nvim)
 
 ```lua
 {
-  "drools-neovim", -- or path to local repository
+  "pradhyu/drools-neovim",
   ft = { "drools" },
   opts = {
     linter = {
