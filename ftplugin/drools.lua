@@ -59,11 +59,11 @@ vim.keymap.set("n", "[w", function()
 end, vim.tbl_extend("force", opts, { desc = "Drools: Previous When Block" }))
 
 vim.keymap.set("n", "]t", function()
-  vim.fn.search([[^\s*then\(\[[^]]*\]\)\?:\?\s*$]], "W")
+  vim.fn.search([=[^\s*then\(\[[^]]*\]\)\?:\?\s*$]=], "W")
 end, vim.tbl_extend("force", opts, { desc = "Drools: Next Then Block" }))
 
 vim.keymap.set("n", "[t", function()
-  vim.fn.search([[^\s*then\(\[[^]]*\]\)\?:\?\s*$]], "bW")
+  vim.fn.search([=[^\s*then\(\[[^]]*\]\)\?:\?\s*$]=], "bW")
 end, vim.tbl_extend("force", opts, { desc = "Drools: Previous Then Block" }))
 
 vim.keymap.set("n", "]d", function()

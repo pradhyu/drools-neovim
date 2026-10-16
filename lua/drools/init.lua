@@ -41,6 +41,7 @@ function M.setup(user_opts)
   require("drools.completion").setup()
 
   local hover = require("drools.hover")
+  hover.setup_mouse(M.options.mouse)
 
   -- Register User Commands
   vim.api.nvim_create_user_command("DroolsHover", function()
