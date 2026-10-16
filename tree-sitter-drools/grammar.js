@@ -415,10 +415,10 @@ module.exports = grammar({
       seq(
         optional('not'),
         choice(
-          'after', 'before', 'coincides', 'during', 'finishes', 'finishedby',
+          'after', 'before', 'coincides', 'during', 'includes', 'includedby', 'finishes', 'finishedby',
           'meets', 'metby', 'overlaps', 'overlappedby', 'starts', 'startedby',
         ),
-        optional(seq('[', $.expression, optional(seq(',', $.expression)), ']')),
+        optional(seq('[', commaSep1($.expression), ']')),
       ),
     )),
 
@@ -474,6 +474,7 @@ module.exports = grammar({
       'eval',
       '(',
       $.expression,
+      optional(';'),
       ')',
     )),
 
