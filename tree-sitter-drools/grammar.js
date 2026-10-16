@@ -31,12 +31,28 @@ module.exports = grammar({
       $.unit_statement,
       $.import_statement,
       $.global_declaration,
+      $.application_data_statement,
+      $.expander_statement,
       $.attribute,
       $.declare_statement,
       $.function_declaration,
       $.query_declaration,
       $.rule_declaration,
       $.annotation,
+    )),
+
+    application_data_statement: $ => prec.right(seq(
+      'application-data',
+      field('type', $.type_spec),
+      field('name', $.identifier),
+      optional(';'),
+    )),
+
+    expander_statement: $ => prec.right(seq(
+      optional('use'),
+      'expander',
+      choice($.scoped_identifier, $.identifier, /[^;\r\n]+/),
+      optional(';'),
     )),
 
     package_statement: $ => prec.right(seq(
@@ -55,9 +71,11 @@ module.exports = grammar({
       'import',
       optional(choice('static', 'function', 'accumulate')),
       field('name', $.scoped_identifier),
-      optional(choice(seq('.', '*'), $.identifier)),
+      optional(choice($.wildcard_import, $.identifier)),
       optional(';'),
     )),
+
+    wildcard_import: $ => token(seq('.', '*')),
 
     global_declaration: $ => prec.right(seq(
       'global',
@@ -148,7 +166,7 @@ module.exports = grammar({
 
     rule_declaration: $ => prec.right(seq(
       'rule',
-      field('name', choice($.string, $.identifier)),
+      field('name', choice($.string, $.identifier, repeat1($.identifier))),
       repeat(choice(
         seq('extends', choice($.string, $.identifier)),
         seq('attributes', optional(':')),
@@ -157,9 +175,11 @@ module.exports = grammar({
         ',',
         ';',
       )),
-      'when',
-      optional(':'),
-      optional(field('when', $.when_block)),
+      optional(seq(
+        'when',
+        optional(':'),
+        optional(field('when', $.when_block)),
+      )),
       'then',
       optional(seq('[', $.identifier, ']')),
       optional(':'),
@@ -181,33 +201,37 @@ module.exports = grammar({
     ),
 
     attribute: $ => prec.right(seq(
-      field('name', choice(
-        'salience',
-        'agenda-group',
-        'ruleflow-group',
-        'activation-group',
-        'lock-on-active',
-        'no-loop',
-        'auto-focus',
-        'enabled',
-        'dialect',
-        'duration',
-        'timer',
-        'calendars',
-        'date-effective',
-        'date-expires',
-        'refract',
-        'direct',
-      )),
-      optional(':'),
-      optional(field('value', choice(
-        $.parenthesized_raw,
-        commaSep1($.string),
-        $.number,
-        $.boolean,
-        $.bound_variable,
-        $.identifier,
-      ))),
+      choice(
+        seq('calendars', optional(':'), commaSep1($.string)),
+        seq(
+          field('name', choice(
+            'salience',
+            'agenda-group',
+            'ruleflow-group',
+            'activation-group',
+            'lock-on-active',
+            'no-loop',
+            'auto-focus',
+            'enabled',
+            'dialect',
+            'duration',
+            'timer',
+            'date-effective',
+            'date-expires',
+            'refract',
+            'direct',
+          )),
+          optional(':'),
+          optional(field('value', choice(
+            $.parenthesized_raw,
+            $.string,
+            $.number,
+            $.boolean,
+            $.bound_variable,
+            $.identifier,
+          ))),
+        ),
+      ),
       optional(';'),
     )),
 
@@ -290,7 +314,7 @@ module.exports = grammar({
 
     variable_binding: $ => prec(3, seq(
       field('name', choice($.bound_variable, $.identifier)),
-      choice(':', ':='),
+      choice(':', ':=', '=>'),
     )),
 
     oopath_expression: $ => prec.right(seq(

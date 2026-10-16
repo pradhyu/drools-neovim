@@ -167,17 +167,8 @@
                 "type": "CHOICE",
                 "members": [
                   {
-                    "type": "SEQ",
-                    "members": [
-                      {
-                        "type": "STRING",
-                        "value": "."
-                      },
-                      {
-                        "type": "STRING",
-                        "value": "*"
-                      }
-                    ]
+                    "type": "SYMBOL",
+                    "name": "wildcard_import"
                   },
                   {
                     "type": "SYMBOL",
@@ -201,6 +192,22 @@
                 "type": "BLANK"
               }
             ]
+          }
+        ]
+      }
+    },
+    "wildcard_import": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "."
+          },
+          {
+            "type": "STRING",
+            "value": "*"
           }
         ]
       }

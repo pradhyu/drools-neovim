@@ -1159,6 +1159,10 @@
         {
           "type": "identifier",
           "named": true
+        },
+        {
+          "type": "wildcard_import",
+          "named": true
         }
       ]
     }
@@ -2926,6 +2930,10 @@
   {
     "type": "while",
     "named": false
+  },
+  {
+    "type": "wildcard_import",
+    "named": true
   },
   {
     "type": "window",
