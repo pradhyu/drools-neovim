@@ -21,9 +21,12 @@ end)
 -- Buffer-local keymaps
 local opts = { buffer = true, silent = true }
 
--- Navigation & Definition Lookups (Keyboard only; never hijack mouse)
+-- Navigation & Definition Lookups (Keyboard gd/K and Ctrl+Click hover)
 vim.keymap.set("n", "gd", "<cmd>DroolsGotoDefinition<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Goto Definition" }))
 vim.keymap.set("n", "K", "<cmd>DroolsHover<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Show Hover Documentation" }))
+vim.keymap.set({ "n", "v" }, "<C-LeftMouse>", function()
+  require("drools.hover").handle_ctrl_click()
+end, vim.tbl_extend("force", opts, { desc = "Drools: Ctrl+Click Hover" }))
 
 vim.keymap.set("n", "<leader>dh", "<cmd>DroolsHover<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Show Specification Hover" }))
 vim.keymap.set("n", "<leader>ds", "<cmd>DroolsSymbols<CR>", vim.tbl_extend("force", opts, { desc = "Drools: Outline Symbols (Quickfix)" }))
