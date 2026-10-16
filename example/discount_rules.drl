@@ -27,7 +27,7 @@ rule "Apply VIP Customer 20% Discount"
     agenda-group "pricing-rules"
     no-loop true
     when
-        $customer : Customer( membershipTier == "GOLD" || membershipTier == "PLATINUM", totalSpent > 1000.00 )
+        $cu stomer : Customer( membershipTier == "GOLD" || membershipTier == "PLATINUM", totalSpent > 1000.00 )
         $order : Order( customerId == $customer.id, status == "PENDING", $total : totalAmount )
     then
         double discountAmount = $total * 0.20;

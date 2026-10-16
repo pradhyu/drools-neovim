@@ -219,6 +219,7 @@ module.exports = grammar({
         $.boolean,
         $.bound_variable,
         $.identifier,
+        '/',
         /[^()"'\/]+/,
       )),
       ')',
@@ -335,8 +336,8 @@ module.exports = grammar({
     from_clause: $ => prec.right(seq(
       'from',
       choice(
-        seq('entry-point', choice($.string, $.identifier)),
-        seq('window', $.identifier),
+        prec(2, seq('entry-point', choice($.string, $.identifier))),
+        prec(2, seq('window', $.identifier)),
         $.accumulate_clause,
         $.groupby_clause,
         $.collect_clause,
@@ -359,7 +360,7 @@ module.exports = grammar({
 
     field_constraint: $ => prec.right(2, seq(
       optional($.variable_binding),
-      field('field', choice($.identifier, 'this')),
+      field('field', choice($.identifier, 'this', $.member_access, $.array_access)),
       field('operator', $.operator),
       field('value', $.expression),
       repeat(seq(
@@ -622,7 +623,7 @@ module.exports = grammar({
       '}',
     ),
 
-    expression: $ => prec.left(choice(
+    expression: $ => choice(
       $.bound_variable,
       $.identifier,
       'this',
@@ -647,7 +648,7 @@ module.exports = grammar({
       $.ternary_expression,
       $.parenthesized_expression,
       $.array_initializer,
-    )),
+    ),
 
     new_expression: $ => prec.right(4, seq(
       'new',
@@ -781,7 +782,7 @@ module.exports = grammar({
 
     line_comment: $ => token(seq('//', /.*/)),
 
-    hash_comment: $ => token(seq('#', /.*/)),
+    hash_comment: $ => token(seq('#', /[ \t#].*/)),
 
     block_comment: $ => token(seq(
       '/*',
