@@ -119,38 +119,66 @@ lsp = {
 
 ## User Commands & Keymaps
 
-| Command | Keymap | Description |
-|---|---|---|
-| `:DroolsHover` | `<C-LeftMouse>` / `K` / `<leader>dh` | Show specification docs or definition hover popup |
-| `:DroolsSpec [keyword]` | - | Show official Drools specification popup for any keyword (with tab completion) |
-| `:DroolsGotoDefinition` | `gd` | Jump to definition of fact type, variable binding, or import |
-| `:DroolsAgenda` | `<leader>da` | Inspect rule execution priority agenda and detect infinite loop risks |
-| `:DroolsCodeAction` | `<leader>ca` | Show quick-fix code actions menu (auto-add end, no-loop, package, etc.) |
-| `:DroolsExpandDSL` | - | Expand `.dsl` domain mappings into raw DRL in a split preview |
-| `:DroolsLint` | `<leader>dl` | Run static syntax analysis on current Drools buffer |
-| `:DroolsLintMode [mode]` | - | Set linter mode: `live` (Insert mode), `insert_leave` (on exit Insert), `on_save` (on save) |
-| `:DroolsFoldRule` | `<leader>zR` | Collapse current rule block (`rule "Name"` to `end`) |
-| `:DroolsFoldWhen` | `<leader>zW` | Collapse `when` condition block (`when` to `then`) |
-| `:DroolsFoldThen` | `<leader>zT` | Collapse `then` action block (`then` to `end`) |
-| `:DroolsFoldAllRules` | `<leader>zA` | Collapse ALL rules in buffer into 1-line headers |
-| `:DroolsFoldAllWhen` | - | Collapse ALL `when` condition blocks across buffer |
-| `:DroolsFoldAllThen` | - | Collapse ALL `then` action blocks across buffer |
-| `:DroolsFoldExcept [query]` | `<leader>zF` | **Focus Mode**: Fold all rules EXCEPT those matching search query |
-| `:DroolsUnfoldAll` | - | Unfold all collapsed blocks in buffer (`zR`) |
-| `:DroolsFormat` | `<leader>df` | Auto-format current Drools buffer |
-| `:DroolsSymbols` | `<leader>ds` | Show rules, queries, and fact symbol outline |
-| `:DroolsTest` | `<leader>dt` | Run Maven/Gradle test suite for Drools rules |
-| `:Telescope drools` | - | Interactively browse rules and symbols with Telescope |
-| `:checkhealth drools` | - | Verify plugin setup, filetype, and dependencies |
+When a Drools (`.drl` or `.dsl`) file is open, the following ergonomic buffer-local keymaps and user commands are automatically active:
 
-### Structural Text-Objects & Motions
+### Navigation, Definition & Documentation
+
+| Keymap / Gesture | Command | Description |
+|---|---|---|
+| `<C-LeftMouse>` | - | **Ctrl+Click**: Jump to definition or show specification hover at clicked word |
+| `<2-LeftMouse>` | - | **Double-Click**: Jump to definition or show specification hover |
+| `<MouseMove>` | - | **Mouse Hover**: Automatic floating tooltip when hovering over keywords (500ms debounce) |
+| `gd` | `:DroolsGotoDefinition` | Jump to definition of fact type, rule, variable binding, query, or function |
+| `K` | `:DroolsHover` | Show official Drools specification documentation or local AST definition popup |
+| `<leader>dh` | `:DroolsHover` | Show specification docs popup |
+| `:DroolsSpec [keyword]` | - | Show official Drools specification popup for any keyword (with tab completion) |
+| `<leader>ds` | `:DroolsSymbols` | Show rules, queries, functions, and fact outline in location list |
+
+### Motions & Traversal
+
+| Motion | Description |
+|---|---|
+| `]r` / `[r` | Jump to **Next / Previous Rule** block |
+| `]w` / `[w` | Jump to **Next / Previous When** condition block |
+| `]t` / `[t` | Jump to **Next / Previous Then** action block |
+| `]d` / `[d` | Jump to **Next / Previous Diagnostic** issue |
+
+### Structural Folding & Focus Mode
+
+| Keymap (Lowercase / Uppercase) | Command | Description |
+|---|---|---|
+| `<leader>zr` / `<leader>zR` | `:DroolsFoldRule` | Collapse current rule block (`rule "Name"` to `end`) |
+| `<leader>zw` / `<leader>zW` | `:DroolsFoldWhen` | Collapse `when` condition block (`when` to `then`) |
+| `<leader>zt` / `<leader>zT` | `:DroolsFoldThen` | Collapse `then` action block (`then` to `end`) |
+| `<leader>za` / `<leader>zA` | `:DroolsFoldAllRules` | Collapse ALL rules in buffer into 1-line headers |
+| `<leader>zaw` | `:DroolsFoldAllWhen` | Collapse ALL `when` condition blocks across buffer |
+| `<leader>zat` | `:DroolsFoldAllThen` | Collapse ALL `then` action blocks across buffer |
+| `<leader>zu` / `<leader>zU` | `:DroolsUnfoldAll` | Unfold all collapsed blocks in buffer (`zR`) |
+| `<leader>zf` / `<leader>zF` | `:DroolsFoldExcept [query]` | **Focus Mode**: Fold all rules EXCEPT those matching search query |
+
+### Diagnostics, Actions & Tools
+
+| Keymap | Command | Description |
+|---|---|---|
+| `<leader>dl` | `:DroolsLint` | Run static syntax analysis on current Drools buffer |
+| `:DroolsLintMode [mode]` | - | Set linter mode: `live` (Insert mode), `insert_leave` (on exit Insert), `on_save` (on save) |
+| `<leader>df` | `:DroolsFormat` | Auto-format current Drools buffer |
+| `<leader>da` | `:DroolsAgenda` | Inspect rule execution priority agenda and detect infinite loop risks |
+| `<leader>ca` | `:DroolsCodeAction` | Show quick-fix code actions menu (auto-add end, no-loop, package, etc.) |
+| `<leader>dt` | `:DroolsTest` | Run Maven/Gradle test suite for Drools rules |
+| `<leader>de` | `:DroolsExpandDSL` | Expand `.dsl` domain mappings into raw DRL in a split preview |
+| `<leader>th` | `:DroolsToggleSectionHighlight` | Toggle background color tinting for `when` vs `then` blocks |
+| - | `:Telescope drools` | Interactively browse rules and symbols with Telescope |
+| - | `:checkhealth drools` | Verify plugin setup, filetype, parser binary, and dependencies |
+
+### Structural Text-Objects (Operator-Pending & Visual)
 
 | Text-Object | Target | Example Usage |
 |---|---|---|
-| `aR` / `iR` | Around / Inside **Rule** block | `vaR` (select rule), `diR` (delete inside rule) |
-| `aW` / `iW` | Around / Inside **When** clause | `viW` (select inside when), `daW` (delete when clause) |
-| `aT` / `iT` | Around / Inside **Then** clause | `viT` (select inside then), `daT` (delete then clause) |
-| `aD` / `iD` | Around / Inside **Declare** block | `vaD` (select declare block) |
+| `ar` / `ir` | Around / Inside **Rule** block | `var` (select rule), `dir` (delete inside rule) |
+| `aw` / `iw` | Around / Inside **When** clause | `viw` (select inside when), `daw` (delete when clause) |
+| `at` / `it` | Around / Inside **Then** clause | `vit` (select inside then), `dat` (delete then clause) |
+| `ad` / `id` | Around / Inside **Declare** block | `vad` (select declare block) |
 
 ---
 
