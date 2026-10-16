@@ -25,19 +25,26 @@ function M.get_symbols(bufnr)
         })
       end
 
-      -- Declare symbol
-      local declare_name = trimmed:match("^declare%s+([%w_]+)")
-      if declare_name then
-        table.insert(symbols, {
-          name = declare_name,
-          type = "declare",
-          lnum = i,
-          line = line,
-        })
+      -- Declare symbol (supports declare [trait|enum|window|entry-point] Name)
+      local declare_rest = trimmed:match("^declare%s+(.+)$")
+      if declare_rest then
+        local declare_name = declare_rest:gsub("^(trait)%s+", "")
+          :gsub("^(enum)%s+", "")
+          :gsub("^(window)%s+", "")
+          :gsub("^(entry%-point)%s+", "")
+          :match("^[\"']?([%w_%.]+)[\"']?")
+        if declare_name then
+          table.insert(symbols, {
+            name = declare_name,
+            type = "declare",
+            lnum = i,
+            line = line,
+          })
+        end
       end
 
       -- Query symbol
-      local query_name = trimmed:match("^query%s+[\"']?(.-)[\"']?$")
+      local query_name = trimmed:match("^query%s+[\"']?(.-)[\"']?%s*%(") or trimmed:match("^query%s+[\"']?(.-)[\"']?$")
       if query_name then
         table.insert(symbols, {
           name = query_name,
@@ -47,8 +54,8 @@ function M.get_symbols(bufnr)
         })
       end
 
-      -- Function symbol
-      local func_name = trimmed:match("^function%s+.-%s+([%w_]+)%s*%(")
+      -- Function symbol (supports typed, generic, array, or untyped functions)
+      local func_name = trimmed:match("^function%s+.-%s+([%w_]+)%s*%(") or trimmed:match("^function%s+([%w_]+)%s*%(")
       if func_name then
         table.insert(symbols, {
           name = func_name,

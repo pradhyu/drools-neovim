@@ -188,6 +188,11 @@ function M.unfold_all()
   vim.notify("Unfolded all blocks in buffer", vim.log.levels.INFO)
 end
 
+local function strip_line_comment(s)
+  if not s then return "" end
+  return s:gsub("//.*$", ""):gsub("/%*.-%*/", ""):match("^%s*(.-)%s*$") or ""
+end
+
 --- 2-Level Nested Fold Expression for Drools buffers:
 --- Level 1: rule/declare/query/function start (">1")
 --- Level 2: when start (">2"), then start (">2")
@@ -198,36 +203,53 @@ function M.foldexpr(lnum)
   local line = vim.fn.getline(lnum)
   if not line then return "0" end
 
-  local trimmed = line:match("^%s*(.-)%s*$") or ""
+  local trimmed = strip_line_comment(line)
 
   -- Outer rule/declare/query/function header (Level 1 start)
-  if trimmed:match("^rule%s+") or trimmed:match("^declare%s+") or trimmed:match("^query%s+") or trimmed:match("^function%s+") then
+  if trimmed:match("^rule%s+") or trimmed:match("^rule$")
+     or trimmed:match("^declare%s+") or trimmed:match("^declare$")
+     or trimmed:match("^query%s+") or trimmed:match("^query$")
+     or trimmed:match("^function%s+") or trimmed:match("^function$") then
     return ">1"
   end
 
   -- 'when' clause header (Level 2 start inside rule)
-  if trimmed == "when" then
+  if trimmed:match("^when%s*:?$") then
     return ">2"
   end
 
   -- 'then' clause header (Level 2 start inside rule)
-  if trimmed == "then" then
+  if trimmed:match("^then%s*:?$") or trimmed:match("^then%s*%b[]%s*:?$") then
     return ">2"
   end
 
   -- Block closing 'end'
-  if trimmed == "end" then
-    return "1"
+  if trimmed:match("^end%s*;?$") then
+    return "<1"
   end
 
   -- Find parent section context
   for i = lnum - 1, 1, -1 do
-    local prev = vim.fn.getline(i):match("^%s*(.-)%s*$") or ""
-    if prev == "end" then
+    local raw_prev = vim.fn.getline(i)
+    local prev = strip_line_comment(raw_prev)
+    if prev:match("^end%s*;?$") then
       return "0"
-    elseif prev == "then" or prev == "when" then
+    elseif raw_prev:match("^}%s*;?%s*$") then
+      -- Top-level closing '}' of a function block
+      if trimmed:match("^}%s*;?$") and line:match("^}") then
+        return "<1"
+      end
+      return "0"
+    elseif prev:match("^then%s*:?$") or prev:match("^then%s*%b[]%s*:?$") or prev:match("^when%s*:?$") then
       return "2"
-    elseif prev:match("^rule%s+") or prev:match("^declare%s+") or prev:match("^query%s+") or prev:match("^function%s+") then
+    elseif prev:match("^function%s+") or prev:match("^function$") then
+      if trimmed:match("^}%s*;?$") and line:match("^}") then
+        return "<1"
+      end
+      return "1"
+    elseif prev:match("^rule%s+") or prev:match("^rule$")
+           or prev:match("^declare%s+") or prev:match("^declare$")
+           or prev:match("^query%s+") or prev:match("^query$") then
       return "1"
     end
   end

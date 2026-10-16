@@ -37,27 +37,27 @@ function M.highlight_sections(bufnr)
   local current_section = nil -- "rule", "when", "then"
 
   for i, line in ipairs(lines) do
-    local trimmed = line:match("^%s*(.-)%s*$") or ""
+    local trimmed = line:gsub("//.*$", ""):gsub("/%*.-%*/", ""):match("^%s*(.-)%s*$") or ""
 
-    if trimmed:match("^rule%s+") then
+    if trimmed:match("^rule%s+") or trimmed == "rule" then
       current_section = "rule"
       vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
         line_hl_group = "DroolsRuleHeaderLine",
         priority = 100,
       })
-    elseif trimmed == "when" then
+    elseif trimmed:match("^when%s*:?$") then
       current_section = "when"
       vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
         line_hl_group = "DroolsWhenLine",
         priority = 90,
       })
-    elseif trimmed == "then" then
+    elseif trimmed:match("^then%s*:?$") or trimmed:match("^then%s*%b[]%s*:?$") then
       current_section = "then"
       vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
         line_hl_group = "DroolsThenLine",
         priority = 90,
       })
-    elseif trimmed == "end" then
+    elseif trimmed:match("^end%s*;?$") then
       current_section = nil
     elseif current_section == "when" then
       vim.api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
