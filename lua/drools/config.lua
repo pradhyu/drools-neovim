@@ -26,9 +26,8 @@ M.defaults = {
     enable = true,
   },
   mouse = {
-    enable = true,
-    hover = true,
-    delay_ms = 500,
+    enable = false,
+    hover = false,
   },
 }
 

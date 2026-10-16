@@ -6,9 +6,6 @@ local M = {}
 local docs_cache = nil
 M.current_hover_win = nil
 M.current_hover_buf = nil
-local mouse_timer = nil
-local last_mouse_word = nil
-local last_mouse_pos = { line = -1, col = -1 }
 
 --- Load Drools Specification Reference JSON
 ---@return table Map of keyword to doc objects
@@ -311,146 +308,16 @@ function M.show_hover(relative_to)
     end
   end
 
-  if relative_to ~= "mouse" then
-    vim.notify(string.format("No documentation or definition found for '%s'", cword), vim.log.levels.INFO)
-  end
+  vim.notify(string.format("No documentation or definition found for '%s'", cword), vim.log.levels.INFO)
 end
 
---- Handle Ctrl+Click event (move cursor to clicked position and show definition or specification hover)
-function M.handle_ctrl_click()
-  local mouse_pos = vim.fn.getmousepos()
-  if mouse_pos and mouse_pos.winid > 0 and mouse_pos.line > 0 then
-    local cur_win = vim.api.nvim_get_current_win()
-    if mouse_pos.winid ~= cur_win then
-      pcall(vim.api.nvim_set_current_win, mouse_pos.winid)
-    end
-    local line_count = vim.api.nvim_buf_line_count(0)
-    local target_line = math.min(mouse_pos.line, line_count)
-    local line_str = vim.api.nvim_buf_get_lines(0, target_line - 1, target_line, false)[1] or ""
-    local target_col = math.min(math.max(0, mouse_pos.column - 1), math.max(0, #line_str - 1))
-    pcall(vim.api.nvim_win_set_cursor, 0, { target_line, target_col })
-  end
-
-  local cword = M.get_word_under_cursor()
-  local docs = M.get_spec_docs()
-
-  -- If it's an official spec keyword or annotation, render specification docs
-  if docs[cword] or docs[cword:lower()] or docs["@" .. cword:lower()] then
-    M.show_hover()
-  else
-    -- Otherwise jump to definition (or show symbol popup if already at definition)
-    local jumped = require("drools.navigation").goto_definition()
-    if not jumped then
-      M.show_hover()
-    end
-  end
-end
-
---- Handle Double-Click event
-function M.handle_double_click()
-  M.handle_ctrl_click()
-end
-
---- Handle Mouse Movement hover with debounce
-function M.handle_mouse_move()
-  if vim.bo.filetype ~= "drools" and vim.bo.filetype ~= "dsl" then
-    return
-  end
-
-  local m = vim.fn.getmousepos()
-  if not m or m.winid == 0 or m.line <= 0 or m.column <= 0 then
-    if M.current_hover_win then
-      M.close_hover()
-    end
-    return
-  end
-
-  -- Don't trigger if mouse is inside the floating hover window itself
-  if M.current_hover_win and m.winid == M.current_hover_win then
-    return
-  end
-
-  -- Check if mouse is on a valid line in the window
-  local bufnr = vim.api.nvim_win_get_buf(m.winid)
-  local line_count = vim.api.nvim_buf_line_count(bufnr)
-  if m.line > line_count then
-    return
-  end
-
-  local line_str = vim.api.nvim_buf_get_lines(bufnr, m.line - 1, m.line, false)[1] or ""
-  local word = M.get_word_under_cursor(line_str, m.column)
-
-  if not word or word == "" or #word <= 1 or word:match("^%d+$") then
-    if last_mouse_word and M.current_hover_win then
-      M.close_hover()
-      last_mouse_word = nil
-    end
-    return
-  end
-
-  if word == last_mouse_word and m.line == last_mouse_pos.line then
-    return
-  end
-
-  last_mouse_word = word
-  last_mouse_pos = { line = m.line, col = m.column }
-
-  -- Cancel existing timer
-  if mouse_timer then
-    mouse_timer:stop()
-    mouse_timer:close()
-    mouse_timer = nil
-  end
-
-  local uv = vim.uv or vim.loop
-  mouse_timer = uv.new_timer()
-  mouse_timer:start(500, 0, vim.schedule_wrap(function()
-    if mouse_timer then
-      mouse_timer:close()
-      mouse_timer = nil
-    end
-
-    local current_m = vim.fn.getmousepos()
-    if current_m and current_m.line == last_mouse_pos.line then
-      -- Verify cursor / buffer is still drools
-      if vim.bo.filetype == "drools" or vim.bo.filetype == "dsl" then
-        local docs = M.get_spec_docs()
-        if docs[word] or docs[word:lower()] or docs["@" .. word:lower()] then
-          M.show_spec_doc(word, "mouse")
-        end
-      end
-    end
-  end))
-end
-
---- Setup mouse interaction and optional mousemoveevent listener
----@param opts table|nil
-function M.setup_mouse(opts)
-  opts = opts or {}
-  if opts.enable == false then
-    return
-  end
-
-  -- Enable mouse in Neovim if not already enabled
-  if not vim.o.mouse or vim.o.mouse == "" then
-    vim.o.mouse = "a"
-  end
-
-  -- Enable mousemoveevent if hover tooltips are enabled
-  if opts.hover ~= false and vim.o.mousemoveevent ~= nil then
-    pcall(function() vim.o.mousemoveevent = true end)
-
-    local group = vim.api.nvim_create_augroup("DroolsMouseHover", { clear = true })
-    vim.api.nvim_create_autocmd("FileType", {
-      group = group,
-      pattern = { "drools", "dsl" },
-      callback = function(args)
-        vim.keymap.set({ "n", "v" }, "<MouseMove>", function()
-          M.handle_mouse_move()
-        end, { buffer = args.buf, silent = true, desc = "Drools: Mouse Hover Tooltip" })
-      end,
-    })
-  end
+--- Teardown any mousemove listeners and ensure mousemoveevent is disabled
+---@param _ table|nil
+function M.setup_mouse(_)
+  pcall(function()
+    vim.o.mousemoveevent = false
+    vim.api.nvim_del_augroup_by_name("DroolsMouseHover")
+  end)
 end
 
 return M
