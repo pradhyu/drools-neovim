@@ -36,12 +36,12 @@ local KEYWORDS = {
   ["rule"] = true, ["query"] = true, ["function"] = true, ["unit"] = true,
   ["when"] = true, ["then"] = true, ["end"] = true,
   ["and"] = true, ["or"] = true, ["not"] = true, ["exists"] = true, ["forall"] = true,
-  ["eval"] = true, ["accumulate"] = true, ["collect"] = true,
+  ["eval"] = true, ["accumulate"] = true, ["acc"] = true, ["collect"] = true, ["groupby"] = true,
   ["from"] = true, ["over"] = true, ["window"] = true, ["enum"] = true,
   ["insert"] = true, ["insertLogical"] = true, ["modify"] = true,
   ["update"] = true, ["retract"] = true, ["delete"] = true,
   ["static"] = true, ["null"] = true, ["true"] = true, ["false"] = true,
-  ["in"] = true, ["matches"] = true, ["contains"] = true, ["memberOf"] = true,
+  ["in"] = true, ["notin"] = true, ["matches"] = true, ["contains"] = true, ["memberOf"] = true,
   ["soundslike"] = true, ["excludes"] = true, ["str"] = true,
   ["after"] = true, ["before"] = true, ["coincides"] = true, ["during"] = true,
   ["finishes"] = true, ["finishedby"] = true, ["meets"] = true, ["metby"] = true,
@@ -86,10 +86,21 @@ local DANGLING_OPERATORS = {
   ["<"] = true, ["!"] = true,
 }
 
--- Operators that are pure binary comparison/logical/assignment and cannot immediately follow '(' or ','
+-- Relational operators allowed in Drools abbreviated combined relation conditions (e.g. `age > 30 && < 40`, `age ((> 30 && < 40) || (> 20 && < 25))`)
+local RELATIONAL_OPERATORS = {
+  ["=="] = true, ["!="] = true, ["<="] = true, [">="] = true, ["<"] = true, [">"] = true, ["~="] = true,
+}
+
+-- Operators that are pure binary comparison/logical/assignment and cannot immediately follow ','
 local LEADING_BINARY_OPERATORS = {
   ["="] = true, ["+="] = true, ["-="] = true, ["*="] = true, ["/="] = true, ["%="] = true,
   ["=="] = true, ["!="] = true, ["<="] = true, [">="] = true, ["<"] = true, [">"] = true,
+  ["&&"] = true, ["||"] = true, ["*"] = true, ["/"] = true, ["%"] = true,
+}
+
+-- Operators that can NEVER immediately follow '(' (excludes relational operators which are valid in `age ((> 30 && < 40))`)
+local INVALID_AFTER_OPEN_PAREN = {
+  ["="] = true, ["+="] = true, ["-="] = true, ["*="] = true, ["/="] = true, ["%="] = true,
   ["&&"] = true, ["||"] = true, ["*"] = true, ["/"] = true, ["%"] = true,
 }
 
@@ -696,10 +707,19 @@ function Parser:is_new_top_level_block()
   end
 
   if cur.value == "rule" then
-    -- `rule "Name"` or `rule Name` followed by attributes/when
-    return next_tok.type == TOKEN.STRING or next_tok.type == TOKEN.ERROR
+    -- `rule "Name"` or `rule Name` followed by attributes/when/extends (and not `rule = ...` or `rule.foo`)
+    if next_tok.type == TOKEN.STRING or next_tok.type == TOKEN.ERROR then
+      return true
+    end
+    local after_next = self:peek(2)
+    return self:is_ident_like(next_tok) and next_tok.value ~= "when" and next_tok.value ~= "then" and next_tok.value ~= "end"
+      and after_next and (after_next.line > next_tok.line or after_next.value == "extends" or after_next.value == "when" or after_next.type == TOKEN.ATTRIBUTE)
   elseif cur.value == "query" then
-    return next_tok.type == TOKEN.STRING
+    if next_tok.type == TOKEN.STRING or next_tok.type == TOKEN.ERROR then
+      return true
+    end
+    local after_next = self:peek(2)
+    return self:is_ident_like(next_tok) and after_next and (after_next.line > next_tok.line or after_next.value == "(")
   elseif cur.value == "declare" then
     return self:is_ident_like(next_tok) or next_tok.value == "entry-point"
   elseif cur.value == "function" then
@@ -805,6 +825,10 @@ function Parser:parse()
       self:parse_import()
     elseif tok.type == TOKEN.KEYWORD and tok.value == "global" then
       self:parse_global()
+    elseif tok.type == TOKEN.ATTRIBUTE then
+      -- Package-level rule attributes (e.g. `dialect "mvel"`, `date-effective "..."`)
+      self:parse_rule_attribute("<package>")
+      self:match(TOKEN.PUNCT, ";")
     elseif tok.type == TOKEN.KEYWORD and tok.value == "declare" then
       self:parse_declare()
     elseif tok.type == TOKEN.KEYWORD and tok.value == "rule" then
