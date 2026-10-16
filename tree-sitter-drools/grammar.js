@@ -23,6 +23,8 @@ module.exports = grammar({
     [$.lhs_pattern, $.parameter],
     [$.block, $.array_initializer],
     [$.parameter, $.expression],
+    [$.expander_statement, $.scoped_identifier],
+    [$.rule_declaration, $.expression],
   ],
 
   rules: {
@@ -51,7 +53,7 @@ module.exports = grammar({
     expander_statement: $ => prec.right(seq(
       optional('use'),
       'expander',
-      choice($.scoped_identifier, $.identifier, /[^;\r\n]+/),
+      choice($.scoped_identifier, $.identifier, $.string),
       optional(';'),
     )),
 
@@ -166,7 +168,7 @@ module.exports = grammar({
 
     rule_declaration: $ => prec.right(seq(
       'rule',
-      field('name', choice($.string, $.identifier, repeat1($.identifier))),
+      field('name', choice($.string, $.identifier)),
       repeat(choice(
         seq('extends', choice($.string, $.identifier)),
         seq('attributes', optional(':')),
@@ -412,13 +414,20 @@ module.exports = grammar({
       'in', 'notin', seq('not', 'in'),
       'excludes', seq('not', 'excludes'),
       seq(optional('not'), 'str', '[', $.identifier, ']'),
+      prec(5, seq(
+        optional('not'),
+        choice(
+          'after', 'before', 'coincides', 'during', 'includes', 'includedby', 'finishes', 'finishedby',
+          'meets', 'metby', 'overlaps', 'overlappedby', 'starts', 'startedby',
+        ),
+        seq('[', commaSep1($.expression), ']'),
+      )),
       seq(
         optional('not'),
         choice(
           'after', 'before', 'coincides', 'during', 'includes', 'includedby', 'finishes', 'finishedby',
           'meets', 'metby', 'overlaps', 'overlappedby', 'starts', 'startedby',
         ),
-        optional(seq('[', commaSep1($.expression), ']')),
       ),
     )),
 
@@ -548,6 +557,7 @@ module.exports = grammar({
       'if',
       '(',
       $.expression,
+      optional(';'),
       ')',
       $.rhs_statement,
       optional(seq('else', $.rhs_statement)),
@@ -675,15 +685,26 @@ module.exports = grammar({
       $.binary_expression,
       $.ternary_expression,
       $.parenthesized_expression,
+      $.mvel_collection_literal,
       $.array_initializer,
     ),
+
+    mvel_collection_literal: $ => prec(3, seq(
+      '[',
+      optional(commaSep1(choice(
+        seq(choice($.identifier, $.string, $.number, $.bound_variable), ':', $.expression),
+        $.expression,
+      ))),
+      optional(','),
+      ']',
+    )),
 
     new_expression: $ => prec.right(4, seq(
       'new',
       $.type_spec,
       choice(
         seq('(', optional(commaSep1($.expression)), ')', optional($.block)),
-        seq(repeat1(seq('[', $.expression, ']')), repeat(seq('[', ']'))),
+        seq(repeat1(seq('[', optional($.expression), ']')), optional($.array_initializer)),
         $.array_initializer,
       ),
     )),
@@ -754,7 +775,7 @@ module.exports = grammar({
     binary_expression: $ => prec.left(2, seq(
       $.expression,
       choice(
-        '+', '-', '*', '/', '%',
+        '+', '-', '*', '/', '%', '\\',
         '&&', '||', '&', '|', '^',
         '==', '!=', '<', '<=', '>', '>=', '~=', '<=>',
         '<<', '>>', '>>>',
@@ -773,7 +794,7 @@ module.exports = grammar({
     type_spec: $ => prec.right(seq(
       $.scoped_identifier,
       optional($.type_arguments),
-      repeat(seq('[', ']')),
+      repeat(seq('[', optional($.expression), ']')),
     )),
 
     type_arguments: $ => seq(

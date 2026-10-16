@@ -100,7 +100,7 @@ end
 function M.goto_definition()
   local cword = vim.fn.expand("<cword>")
   if not cword or cword == "" then
-    return
+    return false
   end
 
   local clean_word = cword:gsub("^%$", "")
@@ -109,15 +109,19 @@ function M.goto_definition()
 
   -- Try local AST-based definition lookup first
   for i, line in ipairs(lines_tbl) do
-    if line:match("^%s*declare%s+" .. clean_word)
-       or line:match("^%s*import%s+.-" .. clean_word .. "%s*;")
+    if line:match("^%s*declare%s+.-" .. clean_word)
+       or line:match("^%s*rule%s+[\"']?" .. clean_word .. "[\"']?")
+       or line:match("^%s*import%s+.-" .. clean_word .. "%s*;?")
        or line:match("^%s*global%s+.-" .. clean_word)
+       or line:match("^%s*application%-data%s+.-" .. clean_word)
        or line:match("^%s*query%s+.-" .. clean_word)
        or line:match("^%s*function%s+.-" .. clean_word)
-       or line:match("%$" .. clean_word .. "%s*:") then
+       or line:match("%$" .. clean_word .. "%s*:")
+       or line:match("%$" .. clean_word .. "%s*:=")
+       or line:match("%$" .. clean_word .. "%s*=>") then
       vim.api.nvim_win_set_cursor(0, { i, 0 })
       vim.cmd("normal! zz")
-      return
+      return true
     end
   end
 
@@ -125,10 +129,11 @@ function M.goto_definition()
   local active_clients = vim.lsp.get_clients({ bufnr = bufnr })
   if #active_clients > 0 then
     vim.lsp.buf.definition()
-    return
+    return true
   end
 
   vim.notify("No definition found for '" .. cword .. "'", vim.log.levels.INFO)
+  return false
 end
 
 --- Jump to specific rule by name

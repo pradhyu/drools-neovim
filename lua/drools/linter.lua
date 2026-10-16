@@ -43,6 +43,7 @@ local KEYWORDS = {
   ["static"] = true, ["null"] = true, ["true"] = true, ["false"] = true,
   ["in"] = true, ["notin"] = true, ["matches"] = true, ["contains"] = true, ["memberOf"] = true,
   ["soundslike"] = true, ["excludes"] = true, ["str"] = true,
+  ["application-data"] = true, ["expander"] = true,
   ["after"] = true, ["before"] = true, ["coincides"] = true, ["during"] = true,
   ["finishes"] = true, ["finishedby"] = true, ["meets"] = true, ["metby"] = true,
   ["overlaps"] = true, ["overlappedby"] = true, ["starts"] = true, ["startedby"] = true,
@@ -444,7 +445,8 @@ local function tokenize(source)
 
     -- 11. Single-character operators
     elseif ch == ">" or ch == "<" or ch == "+" or ch == "-" or ch == "*" or ch == "/" or ch == "%"
-        or ch == "=" or ch == "!" or ch == "&" or ch == "|" or ch == "^" or ch == "~" or ch == "?" then
+        or ch == "=" or ch == "!" or ch == "&" or ch == "|" or ch == "^" or ch == "~" or ch == "?"
+        or ch == "\\" then
       emit(TOKEN.OPERATOR, ch, line, col); advance()
 
     -- 12. Punctuation
@@ -671,7 +673,7 @@ function Parser:is_standalone_then()
   if prev and (prev.value == "." or prev.value == "?." or prev.value == "::") then
     return false
   end
-  if next_tok and (next_tok.value == "(" or next_tok.value == "." or next_tok.value == "=") then
+  if next_tok and ((next_tok.line == cur.line and next_tok.value == "(") or next_tok.value == "." or next_tok.value == "=") then
     return false
   end
   return true
@@ -688,7 +690,7 @@ function Parser:is_standalone_when()
   if prev and (prev.value == "." or prev.value == "?." or prev.value == "::") then
     return false
   end
-  if next_tok and (next_tok.value == "(" or next_tok.value == "." or next_tok.value == "=") then
+  if next_tok and ((next_tok.line == cur.line and next_tok.value == "(") or next_tok.value == "." or next_tok.value == "=") then
     return false
   end
   return true
@@ -823,8 +825,10 @@ function Parser:parse()
       self:parse_unit()
     elseif tok.type == TOKEN.KEYWORD and tok.value == "import" then
       self:parse_import()
-    elseif tok.type == TOKEN.KEYWORD and tok.value == "global" then
+    elseif tok.type == TOKEN.KEYWORD and (tok.value == "global" or tok.value == "application-data") then
       self:parse_global()
+    elseif (tok.type == TOKEN.KEYWORD or tok.type == TOKEN.IDENT) and (tok.value == "expander" or (tok.value == "use" and self:peek(1).value == "expander")) then
+      self:parse_expander()
     elseif tok.type == TOKEN.ATTRIBUTE then
       -- Package-level rule attributes (e.g. `dialect "mvel"`, `date-effective "..."`)
       self:parse_rule_attribute("<package>")
@@ -928,6 +932,22 @@ function Parser:parse_global()
   end
 
   self:match(TOKEN.PUNCT, ";")
+end
+
+--- expander foo.dsl or use expander foo.dsl
+function Parser:parse_expander()
+  self.is_dsl = true
+  local exp_tok = self:advance() -- consume 'use' or 'expander'
+  if self:current().value == "expander" then
+    self:advance()
+  end
+  while not self:check(TOKEN.EOF) and not self:is_at_line_start() do
+    if self:check(TOKEN.PUNCT, ";") then
+      self:advance()
+      break
+    end
+    self:advance()
+  end
 end
 
 -- declare [trait|enum|window|entry-point] Name [extends Parent] ... end
@@ -1368,7 +1388,7 @@ function Parser:parse_rule()
       self:match(TOKEN.PUNCT, ";")
       return
     elseif self:is_standalone_then() then
-      self:error(string.format("Rule '%s' is missing 'when' section before 'then'", rule_name), cur)
+      -- In Drools, 'when' is optional (omitting it creates an unconditionally true rule)
     elseif self:is_new_top_level_block() then
       self:error(string.format("Rule '%s' is unclosed and missing 'when', 'then', and 'end'", rule_name), rule_tok)
       return
@@ -1886,6 +1906,8 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
         end
       elseif after_type.type == TOKEN.ANNOTATION then
         -- metadata on pattern
+      elseif self.is_dsl then
+        -- In a DSL file, phrases do not require '('
       else
         self:error(
           string.format("Expected '(' after fact type '%s' in '%s' condition of '%s' (e.g. %s(...))", name_str, section_label, block_name, name_str),

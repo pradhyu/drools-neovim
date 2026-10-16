@@ -25,6 +25,11 @@ M.defaults = {
   snippets = {
     enable = true,
   },
+  mouse = {
+    enable = true,
+    hover = true,
+    delay_ms = 500,
+  },
 }
 
 M.options = vim.deepcopy(M.defaults)
