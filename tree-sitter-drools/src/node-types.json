@@ -1875,6 +1875,16 @@
             "named": true
           }
         ]
+      },
+      "when": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "when_block",
+            "named": true
+          }
+        ]
       }
     },
     "children": {
@@ -1891,10 +1901,6 @@
         },
         {
           "type": "identifier",
-          "named": true
-        },
-        {
-          "type": "lhs_pattern",
           "named": true
         },
         {
@@ -2179,6 +2185,21 @@
         },
         {
           "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "when_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "lhs_pattern",
           "named": true
         }
       ]

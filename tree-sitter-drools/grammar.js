@@ -159,7 +159,7 @@ module.exports = grammar({
       )),
       'when',
       optional(':'),
-      repeat(choice($.lhs_pattern, ';')),
+      optional(field('when', $.when_block)),
       'then',
       optional(seq('[', $.identifier, ']')),
       optional(':'),
@@ -168,6 +168,8 @@ module.exports = grammar({
       'end',
       optional(';'),
     )),
+
+    when_block: $ => repeat1(choice($.lhs_pattern, ';')),
 
     named_consequence_section: $ => seq(
       'then',

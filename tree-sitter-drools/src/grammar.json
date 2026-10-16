@@ -1039,20 +1039,20 @@
             ]
           },
           {
-            "type": "REPEAT",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "when",
+                "content": {
                   "type": "SYMBOL",
-                  "name": "lhs_pattern"
-                },
-                {
-                  "type": "STRING",
-                  "value": ";"
+                  "name": "when_block"
                 }
-              ]
-            }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
           },
           {
             "type": "STRING",
@@ -1133,6 +1133,22 @@
                 "type": "BLANK"
               }
             ]
+          }
+        ]
+      }
+    },
+    "when_block": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "lhs_pattern"
+          },
+          {
+            "type": "STRING",
+            "value": ";"
           }
         ]
       }

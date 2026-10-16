@@ -3,11 +3,47 @@
 
 local M = {}
 
---- Create manual fold between start_line and end_line (1-indexed)
+local function is_rule_line(line)
+  if not line then return false end
+  return line:match("^%s*rule%s+") ~= nil or line:match("^%s*rule%s*$") ~= nil
+      or line:match("^%s*declare%s+") ~= nil or line:match("^%s*declare%s*$") ~= nil
+      or line:match("^%s*query%s+") ~= nil or line:match("^%s*query%s*$") ~= nil
+      or line:match("^%s*function%s+") ~= nil or line:match("^%s*function%s*$") ~= nil
+end
+
+local function is_when_line(line)
+  if not line then return false end
+  return line:match("^%s*when%s*:?%s*$") ~= nil or line:match("^%s*when%s*:?%s*//") ~= nil or line:match("^%s*when%s*:?%s*/%*") ~= nil
+end
+
+local function is_then_line(line)
+  if not line then return false end
+  return line:match("^%s*then%s*:?%s*$") ~= nil or line:match("^%s*then%s*%b[]%s*:?%s*$") ~= nil
+    or line:match("^%s*then%s*:?%s*//") ~= nil or line:match("^%s*then%s*:?%s*/%*") ~= nil
+end
+
+local function is_end_line(line)
+  if not line then return false end
+  return line:match("^%s*end[%s;]*$") ~= nil or line:match("^%s*end[%s;]*//") ~= nil or line:match("^%s*end[%s;]*/%*") ~= nil
+    or line:match("^%s*}%s*;?$") ~= nil
+end
+
+--- Create or close fold between start_line and end_line (1-indexed)
 ---@param start_line number
 ---@param end_line number
 local function create_fold(start_line, end_line)
-  if start_line and end_line and end_line > start_line then
+  if not start_line or not end_line or end_line < start_line then return end
+  local method = vim.wo.foldmethod
+  if method == "expr" then
+    pcall(function()
+      vim.wo.foldenable = true
+      local save_pos = vim.api.nvim_win_get_cursor(0)
+      vim.api.nvim_win_set_cursor(0, { start_line, 0 })
+      vim.cmd("normal! zc")
+      vim.api.nvim_win_set_cursor(0, save_pos)
+    end)
+  else
+    pcall(function() vim.wo.foldenable = true end)
     pcall(function() vim.wo.foldmethod = "manual" end)
     pcall(function() vim.cmd(string.format("%d,%dfold", start_line, end_line)) end)
   end
@@ -22,19 +58,19 @@ function M.fold_rule()
 
   local start_lnum, end_lnum = nil, nil
   for i = cur_line, 1, -1 do
-    if lines[i]:match("^%s*rule%s+") then
+    if is_rule_line(lines[i]) then
       start_lnum = i
       break
     end
   end
   for i = cur_line, #lines do
-    if lines[i]:match("^%s*end%s*$") then
+    if is_end_line(lines[i]) then
       end_lnum = i
       break
     end
   end
 
-  if start_lnum and end_lnum then
+  if start_lnum and end_lnum and end_lnum >= start_lnum then
     create_fold(start_lnum, end_lnum)
     vim.notify("Folded rule block", vim.log.levels.INFO)
   end
@@ -49,19 +85,19 @@ function M.fold_when()
 
   local when_lnum, then_lnum = nil, nil
   for i = cur_line, 1, -1 do
-    if lines[i]:match("^%s*when%s*$") then
+    if is_when_line(lines[i]) then
       when_lnum = i
       break
     end
   end
   for i = cur_line, #lines do
-    if lines[i]:match("^%s*then%s*$") then
+    if is_then_line(lines[i]) then
       then_lnum = i
       break
     end
   end
 
-  if when_lnum and then_lnum then
+  if when_lnum and then_lnum and then_lnum >= when_lnum + 1 then
     create_fold(when_lnum + 1, then_lnum - 1)
     vim.notify("Folded 'when' condition block", vim.log.levels.INFO)
   end
@@ -76,19 +112,19 @@ function M.fold_then()
 
   local then_lnum, end_lnum = nil, nil
   for i = cur_line, 1, -1 do
-    if lines[i]:match("^%s*then%s*$") then
+    if is_then_line(lines[i]) then
       then_lnum = i
       break
     end
   end
   for i = cur_line, #lines do
-    if lines[i]:match("^%s*end%s*$") then
+    if is_end_line(lines[i]) then
       end_lnum = i
       break
     end
   end
 
-  if then_lnum and end_lnum then
+  if then_lnum and end_lnum and end_lnum >= then_lnum + 1 then
     create_fold(then_lnum + 1, end_lnum - 1)
     vim.notify("Folded 'then' action block", vim.log.levels.INFO)
   end
@@ -96,14 +132,24 @@ end
 
 --- Fold ALL rules across entire file
 function M.fold_all_rules()
+  local method = vim.wo.foldmethod
+  if method == "expr" then
+    pcall(function()
+      vim.wo.foldenable = true
+      vim.wo.foldlevel = 0
+    end)
+    vim.notify("Folded all rule blocks in buffer", vim.log.levels.INFO)
+    return
+  end
+
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
   local rule_start = nil
   for i, line in ipairs(lines) do
-    if line:match("^%s*rule%s+") then
+    if is_rule_line(line) then
       rule_start = i
-    elseif line:match("^%s*end%s*$") and rule_start then
+    elseif is_end_line(line) and rule_start then
       create_fold(rule_start, i)
       rule_start = nil
     end
@@ -118,10 +164,12 @@ function M.fold_all_when()
 
   local when_start = nil
   for i, line in ipairs(lines) do
-    if line:match("^%s*when%s*$") then
+    if is_when_line(line) then
       when_start = i
-    elseif line:match("^%s*then%s*$") and when_start then
-      create_fold(when_start + 1, i - 1)
+    elseif is_then_line(line) and when_start then
+      if i >= when_start + 1 then
+        create_fold(when_start + 1, i - 1)
+      end
       when_start = nil
     end
   end
@@ -135,10 +183,12 @@ function M.fold_all_then()
 
   local then_start = nil
   for i, line in ipairs(lines) do
-    if line:match("^%s*then%s*$") then
+    if is_then_line(line) then
       then_start = i
-    elseif line:match("^%s*end%s*$") and then_start then
-      create_fold(then_start + 1, i - 1)
+    elseif is_end_line(line) and then_start then
+      if i >= then_start + 1 then
+        create_fold(then_start + 1, i - 1)
+      end
       then_start = nil
     end
   end
@@ -267,14 +317,17 @@ end
 --- Setup buffer-local fold column gutter display and visual indicators
 ---@param winid number|nil Window handle
 function M.setup_fold_display(winid)
-  winid = winid or 0
-
   pcall(function()
-    vim.api.nvim_set_option_value("foldenable", true, { scope = "local", win = winid })
-    vim.api.nvim_set_option_value("foldcolumn", "2", { scope = "local", win = winid })
-    vim.api.nvim_set_option_value("foldtext", "v:lua.require'drools.folding'.fold_text()", { scope = "local", win = winid })
-    vim.api.nvim_set_option_value("foldmethod", "expr", { scope = "local", win = winid })
-    vim.api.nvim_set_option_value("foldexpr", "v:lua.require'drools.folding'.foldexpr(v:lnum)", { scope = "local", win = winid })
+    vim.opt_local.foldenable = true
+    vim.opt_local.foldcolumn = "2"
+    vim.opt_local.foldtext = "v:lua.require'drools.folding'.fold_text()"
+    if vim.treesitter and pcall(vim.treesitter.get_parser, 0, "drools") then
+      vim.opt_local.foldmethod = "expr"
+      vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+    else
+      vim.opt_local.foldmethod = "expr"
+      vim.opt_local.foldexpr = "v:lua.require'drools.folding'.foldexpr(v:lnum)"
+    end
 
     vim.opt_local.fillchars:append({
       foldopen = "v",

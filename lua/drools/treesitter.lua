@@ -75,9 +75,12 @@ function M.setup(opts)
       local ok = pcall(vim.treesitter.start, bufnr, "drools")
       if ok then
         -- Set Tree-sitter as primary folding method if configured
-        if opts.prefer_treesitter_folding then
-          vim.wo[0][0].foldmethod = "expr"
-          vim.wo[0][0].foldexpr = "v:lua.vim.treesitter.foldexpr()"
+        if opts.prefer_treesitter_folding ~= false then
+          pcall(function()
+            vim.opt_local.foldmethod = "expr"
+            vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+            vim.opt_local.foldenable = true
+          end)
         end
       end
     end,
