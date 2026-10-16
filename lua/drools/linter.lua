@@ -1020,7 +1020,17 @@ function Parser:parse_declare()
   end
 
   -- Parse annotations and field declarations until 'end'
-  while not self:check(TOKEN.EOF) and not self:is_standalone_end() do
+  -- ('end' may sit on the same line, e.g. `declare Person end`; a field literally
+  -- named 'end' would be followed by ':')
+  local function at_declare_end()
+    local c = self:current()
+    if c.type == TOKEN.KEYWORD and c.value == "end" then
+      local n = self:peek(1)
+      return not (n and n.type == TOKEN.PUNCT and n.value == ":")
+    end
+    return false
+  end
+  while not self:check(TOKEN.EOF) and not at_declare_end() do
     local cur = self:current()
 
     if cur.type == TOKEN.ANNOTATION then
@@ -1569,6 +1579,13 @@ function Parser:parse_from_clause(block_name, section_label)
     return
   end
 
+  if self:match(TOKEN.KEYWORD, "window") then
+    if not self:match_ident_like() then
+      self:error(string.format("Expected window name after 'from window' in '%s' of '%s'", section_label, block_name), from_tok)
+    end
+    return
+  end
+
   if self:check(TOKEN.KEYWORD, "accumulate") or self:check(TOKEN.KEYWORD, "acc") or self:check(TOKEN.KEYWORD, "collect") then
     local kw = self:advance()
     if self:check(TOKEN.PUNCT, "(") then
@@ -1678,7 +1695,9 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
       if cur.value == "(" then
         -- Check for invalid leading binary operator right after '(' (allows relational operators in `age ((> 30 && < 40))`)
         local next_tok = self:peek(1)
-        if INVALID_AFTER_OPEN_PAREN[next_tok.value] then
+        local is_oopath_start = (next_tok.value == "/" or (next_tok.value == "?" and self:peek(2).value == "/"))
+          and not inside_constraint_container()
+        if INVALID_AFTER_OPEN_PAREN[next_tok.value] and not is_oopath_start then
           self:error(string.format("Unexpected operator '%s' after '(' in '%s' section of '%s'", next_tok.value, section_label, block_name), next_tok)
         end
         local prev = self:prev()

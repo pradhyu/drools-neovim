@@ -79,6 +79,7 @@ function
                 }
             }
         }
+
         if (skip) {
             continue;
         }

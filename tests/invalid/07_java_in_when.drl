@@ -1,0 +1,5 @@
+rule "Java in when"
+when
+  System.out.println("x");
+then
+end

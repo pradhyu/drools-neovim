@@ -1,0 +1,5 @@
+rule "Bad binding"
+when
+  $cu stomer : Customer()
+then
+end

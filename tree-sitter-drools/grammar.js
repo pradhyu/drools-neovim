@@ -22,7 +22,6 @@ module.exports = grammar({
     [$.parameter, $.expression, $.scoped_identifier],
     [$.lhs_pattern, $.parameter],
     [$.block, $.array_initializer],
-    [$.variable_declaration, $.for_statement],
     [$.parameter, $.expression],
   ],
 
@@ -271,6 +270,7 @@ module.exports = grammar({
       field('name', choice($.identifier, $.string)),
       '(',
       optional(commaSep1($.constraint)),
+      optional(seq(';', optional(commaSep1($.constraint)))),
       ')',
     )),
 
@@ -312,6 +312,7 @@ module.exports = grammar({
       field('type', $.scoped_identifier),
       '(',
       optional(commaSep1($.constraint)),
+      optional(seq(';', optional(commaSep1($.constraint)))),
       ')',
       repeat($.annotation),
       optional($.over_clause),

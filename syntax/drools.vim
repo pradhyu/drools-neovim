@@ -25,8 +25,8 @@ syn keyword droolsAttribute     duration timer calendars date-effective date-exp
 
 " LHS Conditional & Pattern Keywords
 syn keyword droolsConditional   and or not exists forall eval from over
-syn keyword droolsConditional   accumulate collect entry-point
-syn keyword droolsOperator      matches memberOf soundslike in excludes str
+syn keyword droolsConditional   accumulate acc groupby collect entry-point
+syn keyword droolsOperator      matches memberOf soundslike in notin excludes str
 syn match   droolsOperator      "\<contains\>"
 
 " Complex Event Processing (CEP) & Temporal Operators

@@ -1,0 +1,17 @@
+package org.example;
+unit AdultUnit;
+
+declare Person end
+declare enum Color RED, GREEN("g"); code : String end
+
+rule "OOPath"
+when
+  $s : /students[ age > 18 ]/courses#Advanced[ credits > 3 ]
+  alerts : /alertData[ severity == "HIGH" ]
+  not ( /accounts[ balance < 0 ] )
+  ?/loans[ approved ]
+  accumulate( /orders[ $t : total ]; $sum : sum( $t ) )
+  groupby( $p : /persons; $age : $p.getAge(); $c : count() )
+then
+  System.out.println($s);
+end

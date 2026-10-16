@@ -1,0 +1,5 @@
+rule "Missing end"
+when
+  Person()
+then
+  System.out.println("x");

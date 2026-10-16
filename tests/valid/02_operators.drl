@@ -1,0 +1,12 @@
+rule "Operators"
+when
+  Person( age > 30 && < 40, name matches "^J.*", name not matches "x" )
+  Person( age ((> 30 && < 40) || (> 20 && < 25)) )
+  Person( status in ("A", "B"), status not in ("C"), code notin (1, 2) )
+  Person( names contains "Bob", names not contains "Al", city memberOf $cities )
+  Person( name soundslike "Jon", name str[startsWith] "J", tags excludes "z" )
+  Person( address!.street == "Main", address?.city != null )
+  Person( $n : name, 0: "x", this != $other )
+  Person( (age > 10 || age < 5), age > 10 || age < 5 )
+then
+end

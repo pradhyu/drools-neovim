@@ -1,0 +1,5 @@
+rule "Unbalanced"
+when
+  Person( age > 10
+then
+end

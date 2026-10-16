@@ -18,7 +18,7 @@ function M.setup(user_opts)
   M.options = config.setup(user_opts)
 
   -- Setup Tree-sitter primary engine
-  if M.options.treesitter.enable then
+  if M.options.treesitter and M.options.treesitter.enable ~= false then
     treesitter.setup(M.options.treesitter)
   end
 

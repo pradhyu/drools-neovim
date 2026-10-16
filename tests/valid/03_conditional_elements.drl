@@ -1,0 +1,16 @@
+rule "CEs"
+when
+  not Person( age < 18 )
+  exists ( Order( total > 100 ) )
+  forall( $e : Employee( dept == "IT" ) Employee( this == $e, salary > 0 ) )
+  ( Customer( tier == "GOLD" ) or Customer( tier == "PLATINUM" ) )
+  (or Car( color == "red" ) Car( color == "blue" ))
+  (and Car() Truck())
+  eval( 1 + 1 == 2 )
+  $o : Order() from $c.orders
+  $t : Number( intValue > 10 ) from accumulate( Order( $v : total ), sum( $v ) )
+  $l : List() from collect( Item( price > 5 ) )
+  accumulate( Order( $v : total ); $s : sum( $v ), $a : average( $v ); $s > 100 )
+  ?findPerson( "Bob", $age; )
+then
+end

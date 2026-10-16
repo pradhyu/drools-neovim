@@ -1,0 +1,24 @@
+declare StockTick
+  @role( event )
+  @timestamp( time )
+  @duration( dur )
+  @expires( 1h35m )
+  symbol : String
+  time : long
+  dur : long
+end
+
+declare entry-point "Stock Stream" end
+
+declare window Ticks
+  StockTick( symbol == "RHT" ) over window:time( 60s )
+end
+
+rule "CEP"
+  timer ( cron: 0 0/15 * * * ? )
+when
+  $a : StockTick() from entry-point "Stock Stream"
+  $b : StockTick( this after[1s, 10s] $a, this not before $a, this coincides[5s] $a ) over window:length( 10 )
+  StockTick( this during $a, this meets $a, this overlappedby[2s] $a ) from window Ticks
+then
+end

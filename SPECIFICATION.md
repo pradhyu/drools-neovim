@@ -6,15 +6,13 @@
 
 ### Key Features
 - **Filetype Detection**: Automatically detect `.drl` and `.dsl` files.
-- **Tree-Sitter Primary Syntax Highlighting**: Grammar-driven highlighting for Drools keywords, CEP operators, accumulate functions, pattern bindings, fact types, RHS embedded Java, and annotations.
-- **Vim Regex Fallback**: Native regex syntax file (`syntax/drools.vim`) for environments without a compiled Tree-sitter parser.
-- **Syntax Checking & Diagnostics**: 3-tier diagnostic system:
-  1. Tree-sitter AST parse error nodes (`(ERROR)` & `(MISSING)`).
-  2. Pure Lua structural syntax checker (`lua/drools/linter.lua`).
-  3. Drools Language Server (LSP) integration (`lua/drools/lsp.lua`).
-- **Formal Tree-Sitter Grammar**: [`tree-sitter-drools/grammar.js`](file:///home/pk/git/drools-neovim/tree-sitter-drools/grammar.js) derived from official Apache KIE Drools ANTLR 4 DRL parser specifications.
+- **Syntax Highlighting**: Native high-precision regex syntax file (`syntax/drools.vim`) covering all Drools keywords, CEP operators, accumulate functions, pattern bindings, fact types, RHS embedded Java, and annotations.
+- **Syntax Checking & Diagnostics**: 2-tier diagnostic system:
+  1. Pure Lua structural syntax checker and compiler linter (`lua/drools/linter.lua`).
+  2. Drools Language Server (LSP) integration (`lua/drools/lsp.lua`).
+- **Zero External Dependencies**: Pure Lua and Vimscript implementation — no C compiler, node runtime, or native compilation required.
 - **Editing Enhancements**: Smart indentation, comment configuration, rule folding, snippet templates, symbol navigation, and test runner.
-- **Plugin Health Checks**: `:checkhealth drools` module verifying version, Tree-sitter engine, LSP, and linter setup.
+- **Plugin Health Checks**: `:checkhealth drools` module verifying version, LSP, and linter setup.
 
 ---
 
@@ -27,22 +25,13 @@ drools-neovim/
 ├── ftplugin/
 │   └── drools.lua            # Buffer-local options, keymaps, comments
 ├── syntax/
-│   └── drools.vim            # Legacy Vim regex syntax highlighting (fallback)
+│   └── drools.vim            # High-precision Vim regex syntax highlighting
 ├── indent/
 │   └── drools.lua            # Custom rule-based indentation logic
-├── tree-sitter-drools/
-│   ├── grammar.js            # Official ANTLR4-derived Tree-sitter grammar
-│   └── package.json          # Tree-sitter CLI package manifest
-├── queries/
-│   └── drools/               # Tree-sitter queries
-│       ├── highlights.scm    # Highlight scope captures
-│       ├── folds.scm         # Rule & block folding queries
-│       └── indents.scm       # Indentation queries
 ├── lua/
 │   └── drools/
 │       ├── init.lua          # Main plugin entrypoint & setup()
 │       ├── config.lua        # Default options and user config merge
-│       ├── treesitter.lua    # Tree-sitter primary driver & parser integration
 │       ├── lsp.lua           # Drools LSP server launcher with path expansion
 │       ├── linter.lua        # Tokenizer + recursive descent parser for live syntax checking
 │       ├── completion.lua    # Context-aware omni-completion provider (omnifunc / cmp)
@@ -73,7 +62,7 @@ drools-neovim/
 - ✅ **Completed**: Buffer-local options: `commentstring`, `shiftwidth = 4`, `tabstop = 4`, `expandtab = true`, foldexpr, and keymaps.
 
 ### 3.3 Syntax Highlighting & Tokenizer
-- ✅ **Completed**: Dual-layer system. Tree-sitter primary grammar derived from Apache KIE ANTLR4 spec, with Vim regex fallback.
+- ✅ **Completed**: High-precision Vim regex syntax definition (`syntax/drools.vim`) covering standard keywords, Rule Units, OOPath, CEP temporal operators, and annotations with zero compiled C dependencies.
 
 ### 3.4 Interactive Live Syntax Checker (`lua/drools/linter.lua`)
 - ✅ **Completed**: 2-phase compiler frontend (Tokenizer + Recursive Descent Parser) running live as you type (`TextChanged`, `TextChangedI`, `InsertLeave`) with 100ms debouncing. Catches unclosed strings, missing colons, misspelled attributes, unclosed blocks, and unbalanced parens/braces without requiring buffer saves.

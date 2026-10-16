@@ -1,0 +1,26 @@
+rule "RHS"
+when
+  $p : Person()
+  if ( $p.age > 60 ) do[senior] else break[young]
+then
+  modify( $p ) { setAge( $p.getAge() + 1 ), setName("x") }
+  insertLogical( new Alert( "x" ) );
+  Map<String, List<Integer>> m = new HashMap<>();
+  for (Map.Entry<String, List<Integer>> e : m.entrySet()) {
+    System.out.println(e.getKey());
+  }
+  String s = switch (1) { default -> "a"; };
+  try { int x = 1 / 0; } catch (ArithmeticException | IllegalStateException ex) { } finally { }
+  m.forEach((k, v) -> System.out.println(k));
+  int[] arr = new int[] {1, 2, 3};
+  String text = """
+     multi line "text" block
+     """;
+  drools.halt();
+  kcontext.getKieRuntime();
+  delete( $p );
+then[senior]
+  update( $p );
+then[young]
+  retract( $p );
+end

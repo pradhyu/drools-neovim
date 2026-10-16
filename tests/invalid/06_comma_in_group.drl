@@ -1,0 +1,5 @@
+rule "Comma in group"
+when
+  /cars[ ( type == "tesla", price == 10000 ) || price > 5 ]
+then
+end

@@ -1,0 +1,22 @@
+function String hello(String name) {
+    return "Hello " + name + "!";
+}
+
+function <T> List<T> nonNull(List<T> items, int... idx) throws Exception {
+    List<T> out = new ArrayList<>();
+    for (T t : items) {
+        if (t != null) { out.add(t); }
+    }
+    for (int i = 0, j = 1; i < idx.length; i++, j++) { continue; }
+    return out;
+}
+
+query "people over"( int $age )
+    $p : Person( age > $age )
+end
+
+query isContainedIn( String x, String y )
+  Location( x, y; )
+  or
+  ( Location( z, y; ) and ?isContainedIn( x, z; ) )
+end

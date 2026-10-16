@@ -52,9 +52,14 @@ function M.check()
 
   -- Check Tree-sitter parser
   if pcall(vim.treesitter.language.inspect, "drools") then
-    ok("Tree-sitter 'drools' parser is installed")
+    ok("Tree-sitter 'drools' parser is installed and active")
   else
-    warn("Tree-sitter 'drools' parser is not installed (run :TSInstall drools)")
+    local plugin_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h")
+    if vim.fn.filereadable(plugin_dir .. "/parser/drools.so") == 1 then
+      ok("Tree-sitter 'drools' compiled shared library found at parser/drools.so")
+    else
+      warn("Tree-sitter 'drools' parser not built yet (run :DroolsTSBuild to compile the bundled parser)")
+    end
   end
 
   -- Check LSP jar if enabled

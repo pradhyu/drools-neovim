@@ -1,0 +1,25 @@
+package org.example;
+import java.util.List;
+import function org.example.Util.format;
+global java.util.List results;
+dialect "mvel"
+
+rule isAdult
+  salience 10
+  no-loop
+  when
+    $p : Person( age >= 18 )
+  then
+    results.add($p);
+end
+
+rule "Child" extends isAdult
+  agenda-group "g1"
+  lock-on-active true
+  date-effective "4-Sep-2018"
+  timer (int: 30s 5m)
+  calendars "weekday", "weekend"
+  when
+    Person( name == "x" )
+  then
+end

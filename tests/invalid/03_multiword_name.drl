@@ -1,0 +1,4 @@
+rule My Unquoted Rule
+when
+then
+end

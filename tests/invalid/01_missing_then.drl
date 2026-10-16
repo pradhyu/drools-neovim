@@ -1,0 +1,4 @@
+rule "Missing then"
+when
+  Person()
+end
