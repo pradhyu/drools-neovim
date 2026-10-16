@@ -1,0 +1,157 @@
+// example/rule_units_oopath.drl
+// Drools 8 Rule Units, DataStore/DataStream, OOPath, Inline Casts (#Type),
+// Null-Safe Dereferencing (!.), Abbreviated Combined Relations, and groupby().
+
+package org.mortgages;
+unit MortgageRules;
+
+import org.drools.ruleunits.api.RuleUnitData;
+import org.drools.ruleunits.api.DataStore;
+import org.drools.ruleunits.api.DataStream;
+import java.util.List;
+
+declare Person end
+
+declare Student extends Person
+    school : String
+end
+
+declare LongTermStudent extends Student
+    years : int
+    course : String
+end
+
+declare enum DaysOfWeek
+    SUN("Sunday"), MON("Monday"), TUE("Tuesday"), WED("Wednesday"),
+    THU("Thursday"), FRI("Friday"), SAT("Saturday");
+
+    fullName : String
+end
+
+declare Address
+    street : String
+    city : String
+    country : String
+end
+
+declare LongAddress extends Address
+    district : String
+    postalCode : String
+end
+
+declare Applicant
+    @author( Bob )
+    @dateOfCreation( 01-Feb-2024 )
+    name : String @key @maxLength( 30 )
+    age : int
+    sex : String
+    favoriteColor : String
+    dayOff : DaysOfWeek
+    address : Address
+end
+
+declare Bankruptcy
+    name : String
+    yearOfOccurrence : int
+    amountOwed : double
+end
+
+declare LoanApplication
+    applicant : String
+    amount : int
+    approved : boolean = false
+    explanation : String
+end
+
+declare Alert
+    severity : String
+    message : String
+end
+
+declare SensorReading
+    sensor : String
+    area : String
+    temperature : double
+end
+
+declare MortgageRules extends RuleUnitData
+    applicants : DataStore<Applicant>
+    bankruptcies : DataStore<Bankruptcy>
+    loanApplications : DataStore<LoanApplication>
+    alerts : DataStream<Alert>
+    readings : DataStream<SensorReading>
+end
+
+query highSeverity
+    $alert : /alerts[ severity == "HIGH" ]
+end
+
+query FindApplicantsByCity (String $city)
+    $app : /applicants/address#LongAddress[ city == $city ]
+end
+
+rule Underage
+    when
+        /applicants[ applicantName : name, age < 21 ]
+        $application : /loanApplications[ applicant == applicantName ]
+    then
+        $application.setApproved( false );
+        $application.setExplanation( "Underage" );
+        update( $application );
+end
+
+rule "Bankruptcy history"
+    salience 10
+    when
+        $a : /loanApplications[ applicantName : applicant ]
+        exists ( /bankruptcies[ name == applicantName, yearOfOccurrence > 1990 || amountOwed > 100000 ] )
+    then
+        modify( $a ) {
+            setApproved( false ),
+            setExplanation( "has been bankrupt" )
+        };
+end
+
+rule "Inline casting and null-safe dereferencing in OOPath"
+    when
+        $p : /applicants[
+            name == "mark",
+            $streetName : address!.street,
+            address#LongAddress.country == "uk",
+            age > 30 && < 40,
+            age ((> 30 && < 40) || (> 20 && < 25)),
+            dayOff notin ( DaysOfWeek.SAT, DaysOfWeek.SUN )
+        ]/address#LongAddress[ city == "london", country == "uk" ]
+        ?/loanApplications[ applicant == $p.name, amount > 5000 ]
+    then
+        alerts.append( new Alert( "INFO", "Matched UK applicant on street: " + $streetName ) );
+end
+
+rule "Prefix and Infix Conditional Elements"
+    when
+        pensioner : (
+            /applicants[ sex == "f", age > 60 ]
+            or
+            /applicants[ sex == "m", age > 65 ]
+        )
+        forall(
+            $emp : /applicants[ sex == "f" ]
+            /applicants[ this == $emp, age >= 18 ]
+        )
+    then
+        alerts.append( new Alert( "LOW", "Pensioner verified" ) );
+end
+
+rule "Groupby Sensor Area Temperature Aggregation"
+    when
+        groupby(
+            /readings[ $temp : temperature, $area : area ];
+            $group : $area;
+            $min : min( $temp ),
+            $max : max( $temp ),
+            $avg : average( $temp );
+            $min < 20, $avg > 70
+        )
+    then
+        alerts.append( new Alert( "HIGH", "Area " + $group + " average temp: " + $avg ) );
+end

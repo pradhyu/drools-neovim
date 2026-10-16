@@ -1273,21 +1273,39 @@ function Parser:parse_query()
   self:match(TOKEN.PUNCT, ";")
 end
 
--- rule "Name" [extends "Parent"] [attributes/annotations] when [LHS] then [RHS] end
+-- rule ("Name" | Name) [extends ("Parent" | Parent)] [attributes/annotations] when [LHS] then [RHS] end
 function Parser:parse_rule()
   local rule_tok = self:advance() -- 'rule'
 
   local name_tok = self:match(TOKEN.STRING)
   if not name_tok then
     local cur = self:current()
-    if self:is_ident_like(cur) and cur.value ~= "when" and cur.value ~= "then" and cur.value ~= "end" then
-      self:error(string.format("Rule name must be a quoted string — found '%s' (wrap it in double quotes: \"%s\")", cur.value, cur.value), cur)
+    if self:is_ident_like(cur) and cur.value ~= "when" and cur.value ~= "then" and cur.value ~= "end" and cur.type ~= TOKEN.ATTRIBUTE then
       name_tok = self:advance()
+      -- Check if user wrote multiple unquoted words on the same line (e.g. `rule My Unquoted Rule`)
+      local extra_words = {}
+      while not self:check(TOKEN.EOF) and self:current().line == name_tok.line
+            and self:is_ident_like(self:current())
+            and self:current().value ~= "extends"
+            and self:current().value ~= "when"
+            and self:current().value ~= "then"
+            and self:current().value ~= "end"
+            and self:current().value ~= "attributes"
+            and self:current().type ~= TOKEN.ATTRIBUTE do
+        table.insert(extra_words, self:advance().value)
+      end
+      if #extra_words > 0 then
+        local full_unquoted = name_tok.value .. " " .. table.concat(extra_words, " ")
+        self:error(
+          string.format("Unquoted rule name cannot contain spaces — wrap it in double quotes: \"%s\"", full_unquoted),
+          name_tok
+        )
+      end
     elseif cur.type == TOKEN.ERROR then
       -- Tokenizer already reported unterminated string literal
       self:advance()
     else
-      self:error("Expected quoted rule name after 'rule'", rule_tok)
+      self:error("Expected rule name after 'rule'", rule_tok)
       self:recover("when", "then", "end", "rule", "declare", "query", "function")
     end
   end
@@ -1299,13 +1317,13 @@ function Parser:parse_rule()
     self:parse_annotation()
   end
 
-  -- Optional extends "Parent Rule"
+  -- Optional extends "Parent Rule" or extends ParentRule
   if self:match(TOKEN.KEYWORD, "extends") then
-    if not self:match(TOKEN.STRING) then
+    if not (self:match(TOKEN.STRING) or (self:is_ident_like(self:current()) and self:current().value ~= "when" and self:advance())) then
       if self:check(TOKEN.ERROR) then
         self:advance()
       else
-        self:error(string.format("Expected quoted parent rule name after 'extends' in rule '%s'", rule_name))
+        self:error(string.format("Expected parent rule name after 'extends' in rule '%s'", rule_name))
       end
     end
   end
@@ -1506,7 +1524,7 @@ local LHS_CONDITIONAL_KEYWORDS = {
 }
 
 local LHS_CLAUSE_KEYWORDS = {
-  ["eval"] = true, ["accumulate"] = true, ["collect"] = true,
+  ["eval"] = true, ["accumulate"] = true, ["acc"] = true, ["collect"] = true, ["groupby"] = true,
 }
 
 local RHS_ONLY_ACTIONS = {
@@ -1551,7 +1569,7 @@ function Parser:parse_from_clause(block_name, section_label)
     return
   end
 
-  if self:check(TOKEN.KEYWORD, "accumulate") or self:check(TOKEN.KEYWORD, "collect") then
+  if self:check(TOKEN.KEYWORD, "accumulate") or self:check(TOKEN.KEYWORD, "acc") or self:check(TOKEN.KEYWORD, "collect") then
     local kw = self:advance()
     if self:check(TOKEN.PUNCT, "(") then
       self:skip_balanced("(", ")", string.format("in 'from %s(...)' of '%s'", kw.value, block_name))
@@ -1595,28 +1613,43 @@ function Parser:parse_from_clause(block_name, section_label)
   end
 end
 
---- Parse OOPath expression: `/orders[ status == "OPEN" ]/items[ price > 10 ]`
+--- Parse OOPath segment or expression: `/orders[ status == "OPEN" ]/items#SubType[ price > 10 ]`
 function Parser:parse_oopath(block_name, section_label)
-  while self:check(TOKEN.OPERATOR, "/") or self:check(TOKEN.PUNCT, ".") do
+  while self:check(TOKEN.OPERATOR, "/")
+        or (self:check(TOKEN.OPERATOR, "?") and self:peek(1).type == TOKEN.OPERATOR and self:peek(1).value == "/")
+        or self:check(TOKEN.PUNCT, ".") do
+    if self:check(TOKEN.OPERATOR, "?") then
+      self:advance() -- '?'
+    end
     self:advance() -- '/' or '.'
-    if self:check(TOKEN.PUNCT, "#") then
-      self:advance()
+    self:match_ident_like()
+    -- Optional inline cast `#Type` or `#org.domain.Type`
+    while self:check(TOKEN.PUNCT, "#") do
+      self:advance() -- '#'
       self:parse_scoped_ident(false)
-    else
-      self:match_ident_like()
     end
-    if self:check(TOKEN.PUNCT, "[") then
-      self:skip_balanced("[", "]", string.format("in OOPath expression of '%s'", block_name))
-    end
-    if self:check(TOKEN.PUNCT, "(") then
-      self:skip_balanced("(", ")", string.format("in OOPath expression of '%s'", block_name))
+    -- Note: we do NOT call skip_balanced here on '[' or '(' so that `parse_lhs_section`
+    -- validates constraints, operators, and balanced brackets inside `/path[...]`!
+    if not (self:check(TOKEN.OPERATOR, "/")
+            or (self:check(TOKEN.OPERATOR, "?") and self:peek(1).value == "/")
+            or self:check(TOKEN.PUNCT, ".")) then
+      break
     end
   end
 end
 
 --- Parse and validate LHS section ('when' in rule, or body of 'query' / 'declare window')
 function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
-  local delim_stack = {} -- stack of { open, close, tok }
+  local delim_stack = {} -- stack of { open, close, tok, is_constraint_container, is_boolean_group }
+
+  local function inside_constraint_container()
+    for i = #delim_stack, 1, -1 do
+      if delim_stack[i].is_constraint_container then
+        return true
+      end
+    end
+    return false
+  end
 
   while not self:check(TOKEN.EOF) do
     local cur = self:current()
@@ -1643,12 +1676,28 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
     -- Track balanced delimiters: (), {}, []
     if cur.type == TOKEN.PUNCT then
       if cur.value == "(" then
-        -- Check for leading binary operator right after '('
+        -- Check for invalid leading binary operator right after '(' (allows relational operators in `age ((> 30 && < 40))`)
         local next_tok = self:peek(1)
-        if LEADING_BINARY_OPERATORS[next_tok.value] then
+        if INVALID_AFTER_OPEN_PAREN[next_tok.value] then
           self:error(string.format("Unexpected operator '%s' after '(' in '%s' section of '%s'", next_tok.value, section_label, block_name), next_tok)
         end
-        table.insert(delim_stack, { open = "(", close = ")", tok = cur })
+        local prev = self:prev()
+        local is_constraint_container = (depth == 0)
+          and prev ~= nil
+          and self:is_ident_like(prev)
+          and not LHS_CONDITIONAL_KEYWORDS[prev.value]
+          and not LHS_CLAUSE_KEYWORDS[prev.value]
+          and prev.value ~= "if"
+        local is_boolean_group = inside_constraint_container()
+          and prev ~= nil
+          and (prev.value == "(" or prev.value == "[" or prev.value == "," or prev.value == "&&" or prev.value == "||" or prev.value == "!")
+        table.insert(delim_stack, {
+          open = "(",
+          close = ")",
+          tok = cur,
+          is_constraint_container = is_constraint_container,
+          is_boolean_group = is_boolean_group,
+        })
         self:advance()
         goto continue
       elseif cur.value == "{" then
@@ -1656,7 +1705,14 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
         self:advance()
         goto continue
       elseif cur.value == "[" then
-        table.insert(delim_stack, { open = "[", close = "]", tok = cur })
+        local prev = self:prev()
+        local is_constraint_container = (prev ~= nil and self:is_ident_like(prev) and prev.value ~= "str" and prev.value ~= "do" and prev.value ~= "break" and not KEYWORDS[prev.value])
+        table.insert(delim_stack, {
+          open = "[",
+          close = "]",
+          tok = cur,
+          is_constraint_container = is_constraint_container,
+        })
         self:advance()
         goto continue
       elseif cur.value == ")" or cur.value == "}" or cur.value == "]" then
@@ -1694,9 +1750,13 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
 
     -- Inside constraints/expressions (depth > 0): validate operator sequences
     if depth > 0 then
+      local top_delim = delim_stack[#delim_stack]
       if cur.type == TOKEN.PUNCT and cur.value == "," then
         local prev = self:prev()
         local next_tok = self:peek(1)
+        if top_delim and top_delim.is_boolean_group then
+          self:error("Comma ',' is not valid inside a parenthesized boolean expression — use '&&' or '||' instead", cur)
+        end
         local is_dangling_gt = prev and prev.value == ">"
           and (not self:peek(-2) or (self:peek(-2).type ~= TOKEN.TYPE_IDENT and self:peek(-2).value ~= ">" and self:peek(-2).value ~= "?" and self:peek(-2).value ~= "]"))
         if prev and (DANGLING_OPERATORS[prev.value] or is_dangling_gt or (prev.type == TOKEN.PUNCT and prev.value == ":")) then
@@ -1707,7 +1767,10 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
         end
       elseif LEADING_BINARY_OPERATORS[cur.value] then
         local next_tok = self:peek(1)
-        if LEADING_BINARY_OPERATORS[next_tok.value] and not (cur.value == ">" and next_tok.value == ">") then
+        -- Allow `&& < 40` or `|| > 20` (abbreviated combined relation condition in Drools)
+        local is_abbrev_rel = (cur.value == "&&" or cur.value == "||") and RELATIONAL_OPERATORS[next_tok.value]
+        local is_generic_shift = (cur.value == ">" and next_tok.value == ">")
+        if LEADING_BINARY_OPERATORS[next_tok.value] and not is_abbrev_rel and not is_generic_shift then
           self:error(string.format("Unexpected consecutive operator '%s' after '%s'", next_tok.value, cur.value), next_tok)
         end
       end
@@ -1727,27 +1790,39 @@ function Parser:parse_lhs_section(block_name, section_label, stop_keyword)
       end
     end
 
-    -- 2. Handle `from`, `over`, and OOPath `/...` at depth 0
+    -- 2. Handle `from`, `over`, OOPath `/...` or `?/..`, and `;` at depth 0
     if cur.value == "from" then
       self:parse_from_clause(block_name, section_label)
       goto continue
     elseif cur.value == "over" then
       self:parse_over_clause(block_name, section_label)
       goto continue
-    elseif cur.type == TOKEN.OPERATOR and cur.value == "/" then
+    elseif (cur.type == TOKEN.OPERATOR and cur.value == "/")
+           or (cur.type == TOKEN.OPERATOR and cur.value == "?" and self:peek(1).type == TOKEN.OPERATOR and self:peek(1).value == "/") then
       self:parse_oopath(block_name, section_label)
       goto continue
     elseif cur.type == TOKEN.OPERATOR and cur.value == "?" then
       -- Query call `?queryName(...)`
       self:advance()
       goto continue
+    elseif cur.type == TOKEN.PUNCT and cur.value == "#" then
+      -- Inline cast on OOPath `/persons # Student`
+      self:advance()
+      self:parse_scoped_ident(false)
+      goto continue
     elseif cur.type == TOKEN.ANNOTATION then
       self:parse_annotation()
       goto continue
+    elseif cur.type == TOKEN.PUNCT and cur.value == ";" then
+      self:advance()
+      goto continue
     end
 
-    -- 3. Bound variable at depth 0: `$var : FactType(...)` or `$var := ...`
-    if cur.type == TOKEN.BOUND_VAR then
+    -- 3. Bound variable at depth 0: `$var : FactType(...)` or `var : /path[...]` or `$var := ...`
+    if cur.type == TOKEN.BOUND_VAR
+       or (self:is_ident_like(cur) and not LHS_CONDITIONAL_KEYWORDS[cur.value]
+           and ((self:peek(1).type == TOKEN.PUNCT and self:peek(1).value == ":")
+                or (self:peek(1).type == TOKEN.OPERATOR and self:peek(1).value == ":="))) then
       local var_tok = self:advance()
       if self:match(TOKEN.PUNCT, ":") or self:match(TOKEN.OPERATOR, ":=") then
         if self:is_standalone_then() or self:is_standalone_end() or self:check(TOKEN.EOF) then

@@ -1,0 +1,222 @@
+// example/advanced_java_rhs_and_functions.drl
+// Multiline Functions (primitives, generics, arrays, varargs, throws),
+// Custom Inline Accumulate (init/action/reverse/result), Named Consequences (do[...]/then[...]),
+// Soft Keywords as Variables/Fields, and Complex Multiline Java/MVEL in 'then'.
+
+package com.example.enterprise;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import static java.lang.Math.max;
+import accumulate com.example.accumulators.WeightedAverageAccumulator weightedAvg;
+
+global Map<String, List<BigDecimal>> auditLedger;
+
+dialect "java"
+
+declare trait Taxable
+    @propertyReactive
+    taxJurisdiction : String
+    taxRate : BigDecimal
+end
+
+declare
+    InvoiceLine
+    @propertyReactive
+    lineId : String @key
+    category : String
+    quantity : int = 1
+    unitPrice : BigDecimal = 0.0B
+    rule : String = "STANDARD"
+    window : int = 30
+end
+
+declare
+    Invoice
+        extends
+            Taxable
+    @propertyReactive
+    invoiceId : String @key
+    customerId : String
+    status : String = "OPEN"
+    lines : List<InvoiceLine>
+    tags : String[]
+    total : BigDecimal = 0.0B
+    discount : BigDecimal = 0.0B
+    approved : boolean = false
+end
+
+function boolean isEligibleForTieredDiscount(int quantity, BigDecimal unitPrice) {
+    if (quantity <= 0 || unitPrice == null) {
+        return false;
+    }
+    BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
+    return quantity >= 5 || subtotal.compareTo(new BigDecimal("500.00")) >= 0;
+}
+
+function
+    Map<String, BigDecimal>
+     summarizeByCategory(
+        List<InvoiceLine> lines,
+        String... excludedCategories
+    ) throws IllegalArgumentException {
+    if (lines == null) {
+        throw new IllegalArgumentException("lines cannot be null");
+    }
+    Map<String, BigDecimal> totals = new HashMap<>();
+    for (final InvoiceLine line : lines) {
+        String cat = line.getCategory();
+        boolean skip = false;
+        if (excludedCategories != null) {
+            for (int i = 0; i < excludedCategories.length; i++) {
+                if (excludedCategories[i].equals(cat)) {
+                    skip = true;
+                    break;
+                }
+            }
+        }
+        if (skip) {
+            continue;
+        }
+        BigDecimal lineAmount = line.getUnitPrice().multiply(
+            BigDecimal.valueOf(line.getQuantity())
+        );
+        BigDecimal existing = totals.get(cat);
+        totals.put(
+            cat,
+            existing == null ? lineAmount : existing.add(lineAmount)
+        );
+    }
+    return totals;
+}
+
+function formatAuditNote(prefix, invoiceId, amount) {
+    return prefix + " [" + invoiceId + "] = " + amount;
+}
+
+rule
+    "Complex Multiline Invoice Evaluation With Custom Accumulate And Named Consequences"
+    salience ( 50 + 25 )
+    no-loop true
+    lock-on-active
+    agenda-group "enterprise-billing"
+    date-effective "01-Jan-2025"
+    date-expires "31-Dec-2029"
+    when:
+        $inv : Invoice(
+            $id : invoiceId != null,
+            status in ("OPEN", "PENDING_REVIEW"),
+            status not in ("CANCELLED", "ARCHIVED"),
+            !(total < 0)
+        )
+        $lineCount : Number( intValue > 0 ) from accumulate(
+            $line : InvoiceLine(
+                $qty : quantity > 0,
+                $price : unitPrice != null
+            ) from $inv.getLines(),
+            init(
+                int count = 0;
+                double runningTotal = 0.0;
+            ),
+            action(
+                if (isEligibleForTieredDiscount($qty, $price)) {
+                    count += $qty;
+                    runningTotal += $price.doubleValue() * $qty;
+                }
+            ),
+            reverse(
+                if (isEligibleForTieredDiscount($qty, $price)) {
+                    count -= $qty;
+                    runningTotal -= $price.doubleValue() * $qty;
+                }
+            ),
+            result( Integer.valueOf(count) )
+        )
+        if ( $lineCount.intValue() >= 100 ) do[vipApproval]
+        if ( $lineCount.intValue() >= 500 ) break[executiveEscalation]
+    then:
+        // Local variables using DRL soft keywords ('rule', 'query', 'window', 'duration', 'enabled')
+        final String rule = "TIERED_ENTERPRISE_DISCOUNT";
+        int query = $lineCount.intValue();
+        int window = 90;
+        boolean enabled = true;
+
+        Map<String, BigDecimal> categoryBreakdown = summarizeByCategory(
+            $inv.getLines(),
+            "TAX",
+            "SHIPPING"
+        );
+
+        BigDecimal computedTotal = BigDecimal.ZERO;
+        for (Map.Entry<String, BigDecimal> entry : categoryBreakdown.entrySet()) {
+            BigDecimal val = entry.getValue();
+            if (val != null && val.compareTo(BigDecimal.ZERO) > 0) {
+                computedTotal = computedTotal.add(val);
+            }
+        }
+
+        BigDecimal discountRate;
+        switch (
+            $inv.getStatus()
+        ) {
+            case "OPEN":
+                discountRate = new BigDecimal("0.10");
+                break;
+            case "PENDING_REVIEW":
+                discountRate = new BigDecimal("0.05");
+                break;
+            default:
+                discountRate = BigDecimal.ZERO;
+                break;
+        }
+
+        BigDecimal discountAmt = computedTotal
+            .multiply(discountRate)
+            .setScale(2, RoundingMode.HALF_UP);
+
+        try {
+            if (auditLedger != null && enabled) {
+                List<BigDecimal> history = auditLedger.get($id);
+                if (history == null) {
+                    history = new ArrayList<BigDecimal>();
+                    auditLedger.put($id, history);
+                }
+                history.add(discountAmt);
+            }
+        } catch (RuntimeException ex) {
+            System.err.println("Failed to record ledger for " + rule + ": " + ex.getMessage());
+        } finally {
+            System.out.println(
+                formatAuditNote("Processed", $id, discountAmt)
+            );
+        }
+
+        String auditPayload = """
+            {
+              "rule": "Complex Multiline Invoice Evaluation",
+              "when": "evaluated",
+              "then": "applied",
+              "end": true
+            }
+        """;
+
+        modify( $inv ) {
+            setTotal(
+                computedTotal.subtract(discountAmt)
+            ),
+            setDiscount( discountAmt ),
+            setStatus( "PROCESSED" )
+        };
+    then[vipApproval]:
+        modify( $inv ) {
+            setApproved( true )
+        };
+    then[executiveEscalation]:
+        insertLogical(
+            new String[]{ "ESCALATED", $inv.getInvoiceId() }
+        );
+end;

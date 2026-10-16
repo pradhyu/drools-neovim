@@ -1,7 +1,9 @@
 /// <reference types="tree-sitter-cli/dsl" />
 // tree-sitter-drools/grammar.js
-// Tree-sitter grammar for Drools Rule Language (.drl, .dsl)
-// Aligned with official Apache KIE Drools ANTLR4 DRL parser specifications (DRLParser.g4)
+// Comprehensive Tree-sitter grammar for Drools Rule Language (.drl, .dsl)
+// Supports Drools 6, 7, and 8 (Rule Units, OOPath, CEP Temporal Operators,
+// Accumulate/Groupby, Declare Types/Traits/Enums/Windows/Entry-Points,
+// Functions with Java bodies, Queries, and Java/MVEL RHS Consequence Blocks).
 
 module.exports = grammar({
   name: 'drools',
@@ -15,53 +17,63 @@ module.exports = grammar({
 
   word: $ => $.identifier,
 
+  conflicts: $ => [
+    [$.scoped_identifier, $.expression],
+    [$.parameter, $.expression, $.scoped_identifier],
+    [$.lhs_pattern, $.parameter],
+    [$.block, $.array_initializer],
+    [$.variable_declaration, $.for_statement],
+    [$.parameter, $.expression],
+  ],
+
   rules: {
     compilation_unit: $ => repeat(choice(
       $.package_statement,
       $.unit_statement,
       $.import_statement,
       $.global_declaration,
+      $.attribute,
       $.declare_statement,
       $.function_declaration,
       $.query_declaration,
       $.rule_declaration,
       $.annotation,
-      ';',
     )),
 
-    package_statement: $ => seq(
+    package_statement: $ => prec.right(seq(
       'package',
       field('name', $.scoped_identifier),
       optional(';'),
-    ),
+    )),
 
-    unit_statement: $ => seq(
+    unit_statement: $ => prec.right(seq(
       'unit',
       field('name', $.scoped_identifier),
       optional(';'),
-    ),
+    )),
 
-    import_statement: $ => seq(
+    import_statement: $ => prec.right(seq(
       'import',
       optional(choice('static', 'function', 'accumulate')),
       field('name', $.scoped_identifier),
       optional(choice(seq('.', '*'), $.identifier)),
       optional(';'),
-    ),
+    )),
 
-    global_declaration: $ => seq(
+    global_declaration: $ => prec.right(seq(
       'global',
       field('type', $.type_spec),
       field('name', $.identifier),
       optional(';'),
-    ),
+    )),
 
-    declare_statement: $ => choice(
+    declare_statement: $ => prec.right(choice(
       seq(
         'declare',
         'entry-point',
         field('name', choice($.string, $.identifier)),
         repeat($.annotation),
+        optional(';'),
         'end',
         optional(';'),
       ),
@@ -69,72 +81,105 @@ module.exports = grammar({
         'declare',
         'window',
         field('name', $.identifier),
-        repeat($.annotation),
         repeat($.lhs_pattern),
         'end',
         optional(';'),
       ),
       seq(
         'declare',
-        optional(choice('trait', 'enum')),
+        'enum',
         field('name', $.scoped_identifier),
-        optional(seq('extends', commaSep1($.scoped_identifier))),
-        repeat(choice($.field_declaration, $.annotation, ';')),
+        repeat(choice(
+          seq(commaSep1($.enum_constant), ';'),
+          $.field_declaration,
+          $.annotation,
+        )),
         'end',
         optional(';'),
       ),
+      seq(
+        'declare',
+        optional('trait'),
+        field('name', $.scoped_identifier),
+        optional(seq('extends', commaSep1($.scoped_identifier))),
+        repeat(choice($.field_declaration, $.annotation)),
+        'end',
+        optional(';'),
+      ),
+    )),
+
+    enum_constant: $ => seq(
+      field('name', $.identifier),
+      optional($.argument_list),
     ),
 
-    field_declaration: $ => seq(
-      repeat($.annotation),
-      field('name', $.identifier),
+    field_declaration: $ => prec.right(seq(
+      field('name', choice($.identifier, 'rule', 'query', 'window', 'duration', 'enabled')),
       ':',
       field('type', $.type_spec),
-      repeat($.annotation),
-      optional(seq('=', $.expression)),
-      repeat($.annotation),
+      repeat(choice(
+        $.annotation,
+        seq('=', $.expression),
+      )),
       optional(';'),
-    ),
+    )),
 
-    function_declaration: $ => seq(
+    function_declaration: $ => prec.right(seq(
       'function',
       repeat(choice('public', 'private', 'protected', 'static', 'final', 'synchronized')),
+      optional($.type_arguments),
       optional(field('return_type', $.type_spec)),
       field('name', $.identifier),
       '(',
       optional($.parameter_list),
       ')',
+      optional(seq('throws', commaSep1($.scoped_identifier))),
       field('body', $.block),
-    ),
+      optional(';'),
+    )),
 
-    query_declaration: $ => seq(
+    query_declaration: $ => prec.right(seq(
       'query',
       field('name', choice($.string, $.identifier)),
       optional(seq('(', optional($.parameter_list), ')')),
-      repeat($.lhs_pattern),
+      repeat(choice($.lhs_pattern, ';')),
       'end',
       optional(';'),
-    ),
+    )),
 
-    rule_declaration: $ => seq(
+    rule_declaration: $ => prec.right(seq(
       'rule',
-      field('name', $.string),
-      repeat($.annotation),
-      optional(seq('extends', $.string)),
-      optional(seq('attributes', optional(':'))),
-      repeat(choice($.attribute, $.annotation, ',', ';')),
+      field('name', choice($.string, $.identifier)),
+      repeat(choice(
+        seq('extends', choice($.string, $.identifier)),
+        seq('attributes', optional(':')),
+        $.attribute,
+        $.annotation,
+        ',',
+        ';',
+      )),
       'when',
       optional(':'),
-      repeat($.lhs_pattern),
+      repeat(choice($.lhs_pattern, ';')),
       'then',
       optional(seq('[', $.identifier, ']')),
       optional(':'),
       optional(field('rhs', $.rhs_block)),
+      repeat($.named_consequence_section),
       'end',
       optional(';'),
+    )),
+
+    named_consequence_section: $ => seq(
+      'then',
+      '[',
+      field('label', $.identifier),
+      ']',
+      optional(':'),
+      optional(field('rhs', $.rhs_block)),
     ),
 
-    attribute: $ => seq(
+    attribute: $ => prec.right(seq(
       field('name', choice(
         'salience',
         'agenda-group',
@@ -155,92 +200,174 @@ module.exports = grammar({
       )),
       optional(':'),
       optional(field('value', choice(
+        $.parenthesized_raw,
+        commaSep1($.string),
         $.number,
-        $.string,
         $.boolean,
         $.bound_variable,
         $.identifier,
-        $.expression,
       ))),
+      optional(';'),
+    )),
+
+    parenthesized_raw: $ => seq(
+      '(',
+      repeat(choice(
+        $.parenthesized_raw,
+        $.string,
+        $.number,
+        $.boolean,
+        $.bound_variable,
+        $.identifier,
+        /[^()"'\/]+/,
+      )),
+      ')',
     ),
 
-    lhs_pattern: $ => choice(
+    lhs_pattern: $ => prec.right(choice(
       $.conditional_element,
+      $.grouped_lhs_pattern,
       $.pattern_binding,
+      $.oopath_expression,
       $.fact_pattern,
       $.accumulate_clause,
+      $.groupby_clause,
       $.collect_clause,
       $.eval_clause,
-    ),
+      $.conditional_consequence,
+      $.query_call,
+      $.annotation,
+    )),
 
-    conditional_element: $ => seq(
+    conditional_element: $ => prec.right(2, seq(
       field('kind', choice('and', 'or', 'not', 'exists', 'forall')),
-      optional(seq('(', repeat($.lhs_pattern), ')')),
-    ),
+      $.lhs_pattern,
+    )),
 
-    pattern_binding: $ => seq(
+    grouped_lhs_pattern: $ => prec.right(seq(
+      '(',
+      repeat1(choice($.lhs_pattern, ';')),
+      ')',
+    )),
+
+    conditional_consequence: $ => prec.right(choice(
+      seq(
+        'if',
+        '(',
+        $.expression,
+        ')',
+        choice('do', 'break'),
+        '[',
+        $.identifier,
+        ']',
+        optional(seq('else', choice('do', 'break'), '[', $.identifier, ']')),
+      ),
+      seq(choice('do', 'break'), '[', $.identifier, ']'),
+    )),
+
+    query_call: $ => prec.right(seq(
+      '?',
+      field('name', choice($.identifier, $.string)),
+      '(',
+      optional(commaSep1($.constraint)),
+      ')',
+    )),
+
+    pattern_binding: $ => prec.right(seq(
       $.variable_binding,
-      choice($.fact_pattern, $.accumulate_clause, $.collect_clause),
-    ),
+      choice(
+        $.oopath_expression,
+        $.fact_pattern,
+        $.accumulate_clause,
+        $.groupby_clause,
+        $.collect_clause,
+        $.grouped_lhs_pattern,
+      ),
+    )),
 
-    variable_binding: $ => seq(
-      field('name', $.bound_variable),
+    variable_binding: $ => prec(3, seq(
+      field('name', choice($.bound_variable, $.identifier)),
       choice(':', ':='),
-    ),
+    )),
 
-    fact_pattern: $ => seq(
+    oopath_expression: $ => prec.right(seq(
+      choice('/', '?/'),
+      $.oopath_segment,
+      repeat(seq(choice('/', '?/', '.'), $.oopath_segment)),
+      optional($.over_clause),
+      optional($.from_clause),
+    )),
+
+    oopath_segment: $ => prec.right(seq(
+      field('field', $.identifier),
+      optional(seq('#', field('cast', $.scoped_identifier))),
+      optional(choice(
+        seq('[', optional(commaSep1($.constraint)), ']'),
+        seq('(', optional(commaSep1($.constraint)), ')'),
+      )),
+    )),
+
+    fact_pattern: $ => prec.right(seq(
       field('type', $.scoped_identifier),
       '(',
       optional(commaSep1($.constraint)),
       ')',
+      repeat($.annotation),
       optional($.over_clause),
       optional($.from_clause),
-      optional(';'),
-    ),
+    )),
 
     over_clause: $ => seq(
       'over',
       field('window', choice(
         seq(
-          'window:',
+          'window',
+          ':',
           choice('time', 'length'),
           '(',
-          $.expression,
+          commaSep1($.expression),
           ')',
         ),
         $.identifier,
       )),
     ),
 
-    from_clause: $ => seq(
+    from_clause: $ => prec.right(seq(
       'from',
       choice(
         seq('entry-point', choice($.string, $.identifier)),
+        seq('window', $.identifier),
         $.accumulate_clause,
+        $.groupby_clause,
         $.collect_clause,
         $.expression,
       ),
-    ),
+    )),
 
-    collect_clause: $ => seq(
+    collect_clause: $ => prec.right(seq(
       'collect',
       '(',
       $.lhs_pattern,
       ')',
-    ),
+    )),
 
     constraint: $ => choice(
       $.field_constraint,
       $.positional_constraint,
-      $.expression,
+      seq(optional($.variable_binding), $.expression),
     ),
 
-    field_constraint: $ => seq(
+    field_constraint: $ => prec.right(2, seq(
       optional($.variable_binding),
-      field('field', $.identifier),
+      field('field', choice($.identifier, 'this')),
       field('operator', $.operator),
       field('value', $.expression),
-    ),
+      repeat(seq(
+        choice('&&', '||'),
+        optional(field('operator', $.operator)),
+        $.expression,
+      )),
+    )),
 
     positional_constraint: $ => seq(
       field('index', $.number),
@@ -248,14 +375,15 @@ module.exports = grammar({
       $.expression,
     ),
 
-    operator: $ => choice(
+    operator: $ => prec.left(choice(
       '==', '!=', '>', '>=', '<', '<=', '~=',
       'matches', seq('not', 'matches'),
       'contains', seq('not', 'contains'),
       'memberOf', seq('not', 'memberOf'),
       'soundslike', seq('not', 'soundslike'),
-      'in', seq('not', 'in'),
+      'in', 'notin', seq('not', 'in'),
       'excludes', seq('not', 'excludes'),
+      seq(optional('not'), 'str', '[', $.identifier, ']'),
       seq(
         optional('not'),
         choice(
@@ -264,25 +392,45 @@ module.exports = grammar({
         ),
         optional(seq('[', $.expression, optional(seq(',', $.expression)), ']')),
       ),
-    ),
+    )),
 
-    accumulate_clause: $ => seq(
-      'accumulate',
+    accumulate_clause: $ => prec.right(seq(
+      choice('accumulate', 'acc'),
       '(',
-      $.lhs_pattern,
+      repeat1($.lhs_pattern),
       choice(';', ','),
       choice(
-        commaSep1($.accumulate_function),
+        seq(
+          commaSep1($.accumulate_function),
+          optional(seq(';', optional(commaSep1($.constraint)))),
+        ),
         $.accumulate_custom_block,
       ),
       ')',
-    ),
+    )),
+
+    groupby_clause: $ => prec.right(seq(
+      'groupby',
+      '(',
+      repeat1($.lhs_pattern),
+      ';',
+      optional($.variable_binding),
+      $.expression,
+      ';',
+      commaSep1($.accumulate_function),
+      optional(seq(';', optional(commaSep1($.constraint)))),
+      ')',
+    )),
 
     accumulate_function: $ => seq(
       optional($.variable_binding),
-      field('name', choice('sum', 'avg', 'average', 'min', 'max', 'count', 'collectList', 'collectSet', 'collectArray', $.identifier)),
+      field('name', choice(
+        'sum', 'avg', 'average', 'min', 'max', 'count',
+        'collectList', 'collectSet', 'collectArray',
+        $.identifier,
+      )),
       '(',
-      optional($.expression),
+      optional(commaSep1($.expression)),
       ')',
     ),
 
@@ -291,14 +439,15 @@ module.exports = grammar({
       'action', '(', repeat($.rhs_statement), ')', ',',
       optional(seq('reverse', '(', repeat($.rhs_statement), ')', ',')),
       'result', '(', $.expression, ')',
+      optional(';'),
     ),
 
-    eval_clause: $ => seq(
+    eval_clause: $ => prec.right(seq(
       'eval',
       '(',
       $.expression,
       ')',
-    ),
+    )),
 
     rhs_block: $ => repeat1(
       choice(
@@ -307,40 +456,64 @@ module.exports = grammar({
       ),
     ),
 
-    rhs_action: $ => seq(
+    rhs_action: $ => prec.right(3, seq(
       field('name', choice('insert', 'insertLogical', 'modify', 'update', 'retract', 'delete')),
       '(',
-      optional($.expression),
+      optional(commaSep1($.expression)),
       ')',
       optional($.block),
       optional(';'),
-    ),
+    )),
 
-    rhs_statement: $ => choice(
+    rhs_statement: $ => prec.right(choice(
       $.variable_declaration,
       $.return_statement,
+      $.throw_statement,
+      $.break_statement,
+      $.continue_statement,
       $.if_statement,
       $.for_statement,
       $.while_statement,
+      $.do_while_statement,
+      $.switch_statement,
       $.try_statement,
       $.block,
-      prec(1, seq($.expression, optional(choice(';', ',')))),
-    ),
+      seq($.expression, optional(choice(';', ','))),
+      ';',
+    )),
 
-    variable_declaration: $ => prec(2, seq(
-      optional('final'),
+    variable_declaration: $ => prec.right(2, seq(
+      repeat(choice('final', $.annotation)),
       field('type', $.type_spec),
-      field('name', $.identifier),
+      field('name', choice($.identifier, $.bound_variable, 'rule', 'query', 'window', 'duration', 'enabled')),
       optional(seq('=', $.expression)),
-      repeat(seq(',', $.identifier, optional(seq('=', $.expression)))),
+      repeat(seq(',', choice($.identifier, $.bound_variable), optional(seq('=', $.expression)))),
       optional(';'),
     )),
 
-    return_statement: $ => seq(
+    return_statement: $ => prec.right(seq(
       'return',
       optional($.expression),
       optional(';'),
-    ),
+    )),
+
+    throw_statement: $ => prec.right(seq(
+      'throw',
+      $.expression,
+      optional(';'),
+    )),
+
+    break_statement: $ => prec.right(seq(
+      'break',
+      optional($.identifier),
+      optional(';'),
+    )),
+
+    continue_statement: $ => prec.right(seq(
+      'continue',
+      optional($.identifier),
+      optional(';'),
+    )),
 
     if_statement: $ => prec.right(seq(
       'if',
@@ -351,45 +524,96 @@ module.exports = grammar({
       optional(seq('else', $.rhs_statement)),
     )),
 
-    for_statement: $ => seq(
+    for_statement: $ => prec.right(seq(
       'for',
       '(',
       choice(
-        seq(optional($.rhs_statement), ';', optional($.expression), ';', optional($.expression)),
-        seq(optional('final'), $.type_spec, $.identifier, ':', $.expression),
+        seq(
+          repeat(choice('final', $.annotation)),
+          $.type_spec,
+          choice($.identifier, $.bound_variable),
+          choice(
+            seq(':', $.expression),
+            seq(
+              optional(seq('=', $.expression)),
+              repeat(seq(',', choice($.identifier, $.bound_variable), optional(seq('=', $.expression)))),
+              ';',
+              optional($.expression),
+              ';',
+              optional(commaSep1($.expression)),
+            ),
+          ),
+        ),
+        seq(optional(commaSep1($.expression)), ';', optional($.expression), ';', optional(commaSep1($.expression))),
       ),
       ')',
       $.rhs_statement,
-    ),
+    )),
 
-    while_statement: $ => seq(
+    while_statement: $ => prec.right(seq(
       'while',
       '(',
       $.expression,
       ')',
       $.rhs_statement,
+    )),
+
+    do_while_statement: $ => prec.right(seq(
+      'do',
+      $.rhs_statement,
+      'while',
+      '(',
+      $.expression,
+      ')',
+      optional(';'),
+    )),
+
+    switch_statement: $ => seq(
+      'switch',
+      '(',
+      $.expression,
+      ')',
+      '{',
+      repeat($.switch_case),
+      '}',
     ),
 
-    try_statement: $ => seq(
+    switch_case: $ => prec.right(seq(
+      choice(
+        seq('case', commaSep1($.expression), choice(':', '->')),
+        seq('default', choice(':', '->')),
+      ),
+      repeat(choice($.rhs_action, $.rhs_statement)),
+    )),
+
+    try_statement: $ => prec.right(seq(
       'try',
+      optional(seq('(', repeat1($.rhs_statement), ')')),
       $.block,
-      repeat(seq('catch', '(', $.type_spec, $.identifier, ')', $.block)),
+      repeat(seq('catch', '(', $.type_spec, repeat(seq('|', $.type_spec)), $.identifier, ')', $.block)),
       optional(seq('finally', $.block)),
-    ),
+    )),
 
-    annotation: $ => seq(
+    annotation: $ => prec.right(seq(
       '@',
       field('name', $.scoped_identifier),
-      optional(seq('(', optional(commaSep1($.expression)), ')')),
-    ),
+      optional($.parenthesized_raw),
+    )),
 
     parameter_list: $ => commaSep1($.parameter),
 
     parameter: $ => seq(
-      optional('final'),
+      repeat(choice('final', $.annotation)),
       optional(field('type', $.type_spec)),
       optional('...'),
       field('name', choice($.identifier, $.bound_variable)),
+      repeat(seq('[', ']')),
+    ),
+
+    argument_list: $ => seq(
+      '(',
+      optional(commaSep1($.expression)),
+      ')',
     ),
 
     block: $ => seq(
@@ -401,12 +625,19 @@ module.exports = grammar({
     expression: $ => prec.left(choice(
       $.bound_variable,
       $.identifier,
-      $.scoped_identifier,
+      'this',
+      'rule',
+      'query',
+      'window',
+      'duration',
+      'enabled',
       $.number,
       $.string,
       $.boolean,
       $.null_literal,
       $.new_expression,
+      $.cast_expression,
+      $.lambda_expression,
       $.unary_expression,
       $.assignment_expression,
       $.member_access,
@@ -415,25 +646,51 @@ module.exports = grammar({
       $.binary_expression,
       $.ternary_expression,
       $.parenthesized_expression,
+      $.array_initializer,
     )),
 
-    new_expression: $ => prec(4, seq(
+    new_expression: $ => prec.right(4, seq(
       'new',
       $.type_spec,
       choice(
         seq('(', optional(commaSep1($.expression)), ')', optional($.block)),
-        $.block,
+        seq(repeat1(seq('[', $.expression, ']')), repeat(seq('[', ']'))),
+        $.array_initializer,
       ),
     )),
 
-    unary_expression: $ => prec(3, choice(
-      seq(choice('!', '-', '+', '~', '++', '--'), $.expression),
+    array_initializer: $ => seq(
+      '{',
+      optional(commaSep1($.expression)),
+      optional(','),
+      '}',
+    ),
+
+    cast_expression: $ => prec.right(4, seq(
+      '(',
+      $.type_spec,
+      ')',
+      $.expression,
+    )),
+
+    lambda_expression: $ => prec.right(1, seq(
+      choice(
+        $.identifier,
+        $.bound_variable,
+        seq('(', optional($.parameter_list), ')'),
+      ),
+      '->',
+      choice($.expression, $.block),
+    )),
+
+    unary_expression: $ => prec.right(3, choice(
+      seq(choice('!', '-', '+', '~', '++', '--', '==', '!=', '<', '<=', '>', '>=', '~='), $.expression),
       seq($.expression, choice('++', '--')),
     )),
 
     assignment_expression: $ => prec.right(1, seq(
       $.expression,
-      choice('=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^='),
+      choice('=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=', '>>>='),
       $.expression,
     )),
 
@@ -445,35 +702,42 @@ module.exports = grammar({
       $.expression,
     )),
 
-    member_access: $ => prec(2, seq(
+    member_access: $ => prec.left(4, seq(
       $.expression,
-      choice('.', '?.', '!.', '::', '#'),
-      $.identifier,
+      choice('.', '?.', '!.', '::', '.#', '#'),
+      choice($.identifier, 'class', 'this', 'rule', 'query', 'end', 'when', 'then', 'from', 'in'),
     )),
 
-    array_access: $ => prec(3, seq(
+    array_access: $ => prec.left(4, seq(
       $.expression,
       '[',
       $.expression,
       ']',
     )),
 
-    call_expression: $ => prec(3, seq(
+    call_expression: $ => prec.left(4, seq(
       $.expression,
       '(',
       optional(commaSep1($.expression)),
       ')',
     )),
 
-    binary_expression: $ => prec.left(1, seq(
+    binary_expression: $ => prec.left(2, seq(
       $.expression,
-      choice('+', '-', '*', '/', '%', '&&', '||', '&', '|', '^', '==', '!=', '<', '<=', '>', '>=', '<<', '>>', '>>>', 'instanceof'),
+      choice(
+        '+', '-', '*', '/', '%',
+        '&&', '||', '&', '|', '^',
+        '==', '!=', '<', '<=', '>', '>=', '~=', '<=>',
+        '<<', '>>', '>>>',
+        'instanceof',
+        $.operator,
+      ),
       $.expression,
     )),
 
     parenthesized_expression: $ => seq(
       '(',
-      $.expression,
+      commaSep1($.expression),
       ')',
     ),
 
@@ -485,10 +749,10 @@ module.exports = grammar({
 
     type_arguments: $ => seq(
       '<',
-      commaSep1(choice(
+      optional(commaSep1(choice(
         $.type_spec,
         seq('?', optional(seq(choice('extends', 'super'), $.type_spec))),
-      )),
+      ))),
       '>',
     ),
 
@@ -503,7 +767,7 @@ module.exports = grammar({
 
     identifier: $ => /[a-zA-Z_][a-zA-Z0-9_$]*/,
 
-    number: $ => /\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?([fFdDlLbBiI]|ms|[dhms])?|0[xX][0-9a-fA-F_]+[lL]?|0[bB][01_]+[lL]?/,
+    number: $ => /\d[\d_]*(\.\d[\d_]*)?([eE][+-]?\d[\d_]*)?([fFdDlLbBiI]|(ms|[dhms])(\d+(ms|[dhms]))*)?|0[xX][0-9a-fA-F_]+[lL]?|0[bB][01_]+[lL]?/,
 
     string: $ => choice(
       seq('"""', repeat(choice(/[^"\\]/, /\\./, /"[^"]/, /""[^"]/)), '"""'),

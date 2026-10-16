@@ -1,0 +1,113 @@
+// example/cep_temporal_streams.drl
+// Complex Event Processing (CEP), Sliding/Length Windows, Entry-Points,
+// All 13 Temporal Operators, Interval/Cron/Expression Timers, and Calendars.
+
+package com.example.cep;
+
+import java.util.Date;
+import java.util.List;
+
+global org.slf4j.Logger logger;
+
+declare entry-point "VoiceCallStream"
+    @doc("Telecom incoming call stream")
+end
+
+declare entry-point "NetworkAlertStream"
+end
+
+declare VoiceCall
+    @role( event )
+    @timestamp( callDateTime )
+    @duration( callDuration )
+    @expires( 1h35m )
+    @typesafe( true )
+    @serialVersionUID( 42 )
+
+    originNumber : String @key
+    destinationNumber : String @key
+    callDateTime : Date
+    callDuration : long = 0L
+    region : String = "US-EAST"
+end
+
+declare NetworkEvent
+    @role( event )
+    @timestamp( timestamp )
+    @duration( durationMs )
+
+    nodeId : String @key
+    eventType : String
+    timestamp : long
+    durationMs : long
+    severity : int
+end
+
+declare TimerConfig
+    delay : String = "30s"
+    period : long = 60000L
+end
+
+declare window RecentVoiceCalls
+    VoiceCall( callDuration > 1000 )
+        over window:time( 15m )
+        from entry-point "VoiceCallStream"
+end
+
+declare window LastTenNetworkEvents
+    NetworkEvent( severity >= 3 )
+        over window:length( 10 )
+        from entry-point "NetworkAlertStream"
+end
+
+rule "Correlate Call and Network Outage Using Temporal Operators"
+    salience 100
+    no-loop
+    calendars "weekday", "business-hours"
+    timer ( int: 30s 5m; start=3-JAN-2025, end=4-JAN-2026, repeat-limit=50 )
+    when
+        $call : VoiceCall(
+            originNumber str[startsWith] "+1",
+            destinationNumber str[endsWith] "99",
+            originNumber str[length] 12,
+            region matches "(US|EU)-.*"
+        ) from window RecentVoiceCalls
+
+        $net1 : NetworkEvent(
+            this after[0s, 5m] $call,
+            this before[1ms, 10m] $call
+        ) from entry-point "NetworkAlertStream"
+
+        $net2 : NetworkEvent(
+            this coincides[100ms] $call,
+            this during[1s, 30s] $net1,
+            this finishes[50ms] $net1,
+            this finishedby $call,
+            this meets $net1,
+            this metby $call,
+            this overlaps[1s, 5s] $net1,
+            this overlappedby $call,
+            this starts $net1,
+            this startedby $call
+        ) over window:time( 1h30m ) from entry-point "NetworkAlertStream"
+    then
+        logger.warn("Correlated network event " + $net2.getNodeId() + " with call from " + $call.getOriginNumber());
+end
+
+rule "Cron Scheduled Heartbeat Check"
+    timer ( cron: * 0/15 * * * ? )
+    when
+        not (
+            VoiceCall() over window:time( 15m ) from entry-point "VoiceCallStream"
+        )
+    then
+        logger.info("No voice calls received in the last 15 minutes.");
+end
+
+rule "Dynamic Expression Timer Rule"
+    timer ( expr: $d, $p )
+    when
+        TimerConfig( $d : delay, $p : period )
+    then
+        logger.debug("Triggered dynamic timer with delay=" + $d + ", period=" + $p);
+end
