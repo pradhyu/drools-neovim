@@ -122,7 +122,8 @@ function M.show_popup(lines, title, relative_to)
     max_line_len = math.max(max_line_len, vim.fn.strdisplaywidth(line))
   end
   local width = math.min(math.max(max_line_len + 4, 46), math.max(40, vim.o.columns - 6))
-  local height = math.min(#display_lines, math.max(12, vim.o.lines - 8))
+  local max_height = math.min(16, math.max(8, vim.o.lines - 8))
+  local height = math.min(#display_lines, max_height)
 
   local win_opts = {
     relative = relative_to == "mouse" and "mouse" or "cursor",
