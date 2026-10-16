@@ -6,13 +6,12 @@
 
 ### Key Features
 - **Filetype Detection**: Automatically detect `.drl` and `.dsl` files.
-- **Syntax Highlighting**: Native high-precision regex syntax file (`syntax/drools.vim`) covering all Drools keywords, CEP operators, accumulate functions, pattern bindings, fact types, RHS embedded Java, and annotations.
-- **Syntax Checking & Diagnostics**: 2-tier diagnostic system:
-  1. Pure Lua structural syntax checker and compiler linter (`lua/drools/linter.lua`).
-  2. Drools Language Server (LSP) integration (`lua/drools/lsp.lua`).
-- **Zero External Dependencies**: Pure Lua and Vimscript implementation — no C compiler, node runtime, or native compilation required.
+- **Tree-Sitter Primary Syntax Engine**: Grammar-driven highlighting and AST structure (`tree-sitter-drools/grammar.js`) covering Drools 8 (Rule Units, OOPath, CEP, accumulate/groupby, multiline Java RHS).
+- **Vim Regex Fallback**: Native regex syntax file (`syntax/drools.vim`) for environments without a compiled Tree-sitter parser.
+- **Interactive Syntax Linter**: Real-time diagnostic checker (`lua/drools/linter.lua`) powered by a pure-Lua recursive descent parser.
+- **Drools Language Server (LSP) Ready**: Integration launcher with path expansion (`lua/drools/lsp.lua`).
 - **Editing Enhancements**: Smart indentation, comment configuration, rule folding, snippet templates, symbol navigation, and test runner.
-- **Plugin Health Checks**: `:checkhealth drools` module verifying version, LSP, and linter setup.
+- **Plugin Health Checks**: `:checkhealth drools` module verifying version, Tree-sitter parser, LSP, and linter setup.
 
 ---
 
@@ -25,13 +24,22 @@ drools-neovim/
 ├── ftplugin/
 │   └── drools.lua            # Buffer-local options, keymaps, comments
 ├── syntax/
-│   └── drools.vim            # High-precision Vim regex syntax highlighting
+│   └── drools.vim            # High-precision Vim regex syntax highlighting (fallback)
 ├── indent/
 │   └── drools.lua            # Custom rule-based indentation logic
+├── tree-sitter-drools/
+│   ├── grammar.js            # Formal Tree-sitter grammar for Drools
+│   └── package.json          # Tree-sitter package manifest
+├── queries/
+│   └── drools/
+│       ├── highlights.scm    # Highlight scope captures
+│       ├── folds.scm         # Rule & block folding queries
+│       └── indents.scm       # Indentation queries
 ├── lua/
 │   └── drools/
 │       ├── init.lua          # Main plugin entrypoint & setup()
 │       ├── config.lua        # Default options and user config merge
+│       ├── treesitter.lua    # Tree-sitter driver & auto-compiler
 │       ├── lsp.lua           # Drools LSP server launcher with path expansion
 │       ├── linter.lua        # Tokenizer + recursive descent parser for live syntax checking
 │       ├── completion.lua    # Context-aware omni-completion provider (omnifunc / cmp)

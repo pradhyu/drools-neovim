@@ -1,14 +1,15 @@
 # drools.nvim
 
-A feature-complete Neovim plugin for **Drools Rule Language (`.drl`, `.dsl`)** providing syntax highlighting, smart indentation, snippet templates, AST static syntax diagnostics, document symbol navigation, code formatting, test runner execution, and Language Server (LSP) integration.
+A feature-complete Neovim plugin for **Drools Rule Language (`.drl`, `.dsl`)** providing Tree-sitter primary syntax highlighting, smart indentation, snippet templates, AST static syntax diagnostics, document symbol navigation, code formatting, test runner execution, and Language Server (LSP) integration.
 
 ---
 
 ## Features
 
-- 🎨 **Syntax Highlighting**: Pure Vim regex highlighting ([`syntax/drools.vim`](syntax/drools.vim)) — no compiled parser or build step required.
+- 🌳 **Tree-Sitter Primary Syntax Engine**: Bundled formal Tree-sitter grammar (`tree-sitter-drools/`) and queries (`queries/drools/`) auto-compiled on opening Drools files, with manual rebuild via `:DroolsTSBuild`.
+- 🎨 **Syntax Highlighting**: Full Drools 8 syntax highlighting (Rule Units, OOPath, CEP temporal operators, accumulate/groupby, multiline Java RHS) with fallback to native Vim regex.
 - ⚡ **Filetype Detection**: Native filetype mapping for `.drl` and `.dsl` files.
-- 🔍 **Real-Time AST Syntax Linter**: Built-in diagnostic checker (`:DroolsLint`) a pure-Lua recursive-descent parser of the Drools DRL grammar that flags missing `package`, unclosed `rule` blocks, `when`/`then` order, and unbalanced parentheses/braces.
+- 🔍 **Real-Time AST Syntax Linter**: Built-in diagnostic checker (`:DroolsLint`) — a pure-Lua recursive-descent parser of the Drools DRL grammar that flags missing `package`, unclosed `rule` blocks, `when`/`then` order, and unbalanced parentheses/braces.
 - 🗺️ **Navigation & Outline**: Document symbol extraction (`:DroolsSymbols`) and jump-to-definition (`gd` / `:DroolsGotoDefinition`) for fact types (`declare`) and imports.
 - 🧹 **Code Formatter**: In-buffer DRL auto-formatting (`:DroolsFormat`).
 - 🧪 **Rule Test Runner**: Automated test execution via Maven or Gradle in an integrated terminal (`:DroolsTest`).
@@ -30,12 +31,16 @@ A feature-complete Neovim plugin for **Drools Rule Language (`.drl`, `.dsl`)** p
   "pradhyu/drools-neovim",
   ft = { "drools", "dsl" },
   opts = {
+    treesitter = {
+      enable = true,
+      prefer_treesitter_folding = true,
+    },
     highlight = {
       enable = true,
     },
     linter = {
       enable = true,
-      on_save = true,
+      mode = "insert_leave",
     },
     snippets = {
       enable = true,
@@ -52,8 +57,9 @@ A feature-complete Neovim plugin for **Drools Rule Language (`.drl`, `.dsl`)** p
 
 ```lua
 require("drools").setup({
+  treesitter = { enable = true, prefer_treesitter_folding = true },
   highlight = { enable = true },
-  linter = { enable = true, on_save = true },
+  linter = { enable = true, mode = "insert_leave" },
   lsp = { enable = false }, -- Set true if drools-lsp-server.jar is installed
   snippets = { enable = true },
 })

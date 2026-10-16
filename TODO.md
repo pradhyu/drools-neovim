@@ -6,7 +6,8 @@ This document tracks completed features, active capabilities, and open roadmap i
 
 ## ✅ Completed Features
 
-- [x] **Comprehensive DRL Syntax Highlighting**: Native syntax highlighting (`syntax/drools.vim`) covering full Drools 8 syntax without external C/node dependencies.
+- [x] **Tree-Sitter Primary Grammar & Highlighting**: Formal Tree-sitter grammar (`tree-sitter-drools/`) and highlight queries (`queries/drools/`) covering Drools 8.
+- [x] **Comprehensive DRL Syntax Highlighting & Fallback**: Native regex syntax (`syntax/drools.vim`) and Lua-based integration without external Node dependencies at runtime.
 - [x] **Real-Time Interactive Compiler Linter**: 2-phase Tokenizer + Recursive Descent Parser running live on `TextChanged`/`TextChangedI` with 100ms debouncing (`lua/drools/linter.lua`).
 - [x] **Context-Aware Auto-Completion (`omnifunc`)**: Completion provider for DRL keywords, rule attributes, fact types, bound variables (`$var`), and RHS actions (`lua/drools/completion.lua`).
 - [x] **Specification Hover & Lookup**: Floating docs lookup (`:DroolsHover`, `:DroolsSpec <kw>`) with 30+ embedded specification docs (`resources/drools_spec_docs.json`).
